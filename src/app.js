@@ -81,6 +81,10 @@ class CodeGraphApp {
     this.$filterErrors = document.getElementById('filterErrors');
     this.$filterCircular = document.getElementById('filterCircular');
 
+    // View mode toggle
+    this.$viewModeToggle = document.getElementById('viewModeToggle');
+    this.$viewModeLabel = document.getElementById('viewModeLabel');
+
     // Close inspector
     document.getElementById('closeInspector').addEventListener('click', () => {
       this.$inspector.style.display = 'none';
@@ -114,6 +118,9 @@ class CodeGraphApp {
     // Filtros
     this.$filterErrors.addEventListener('change', () => this._rerender());
     this.$filterCircular.addEventListener('change', () => this._rerender());
+
+    // View mode toggle
+    this.$viewModeToggle.addEventListener('change', () => this._toggleViewMode());
 
     // Node selected (GraphViewer emite CustomEvent)
     document.addEventListener('node-selected', e => this._onNodeSelected(e.detail.node));
@@ -164,6 +171,8 @@ class CodeGraphApp {
 
   _renderFileTree(analysisResult) {
     this.fileTreeViewer.setData(analysisResult.files);
+    // Pasar datos de árbol al GraphViewer para modo estructura
+    this.graphViewer.setTreeData(this.fileTreeViewer.getTreeData());
     const fileTreePanel = document.getElementById('fileTreePanel');
     if (fileTreePanel) fileTreePanel.style.display = 'flex';
   }
@@ -178,6 +187,13 @@ class CodeGraphApp {
 
   _rerender() {
     if (this.analysisResult) this._renderGraph();
+  }
+
+  _toggleViewMode() {
+    const isStructure = this.$viewModeToggle.checked;
+    this.graphViewer.setMode(isStructure ? 'structure' : 'dependencies');
+    this.$viewModeLabel.textContent = isStructure ? 'Estructura' : 'Dependencias';
+    this._rerender();
   }
 
   /* ================================================================== */

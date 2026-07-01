@@ -13,6 +13,10 @@ export class FileTreeViewer {
     this.render();
   }
 
+  getTreeData() {
+    return this.treeData;
+  }
+
   setCallbacks({ onFileSelect, onDirectoryToggle }) {
     this.onFileSelect = onFileSelect;
     this.onDirectoryToggle = onDirectoryToggle;

@@ -6,6 +6,10 @@
  * Eventos emitidos (CustomEvent en document):
  *   'node-selected'  → { detail: { node } }
  *   'node-deselected'
+ *
+ * Modos:
+ *   'dependencies' — Grafo de dependencias (force-directed)
+ *   'structure'    — Árbol de estructura del proyecto (tree layout)
  */
 
 export class GraphViewer {
@@ -14,15 +18,35 @@ export class GraphViewer {
     this.container = null;
     this.sim = null;
     this.selected = null;
+    this.mode = 'dependencies'; // 'dependencies' | 'structure'
+    this.treeData = null;
 
     // Colores
     this.COLOR_ERROR = '#f7614f';
     this.COLOR_CIRCULAR = '#c44fff';
     this.COLOR_LINK = '#2a2f45';
+    this.COLOR_DIR = '#4f8ef7';
+    this.COLOR_FILE = '#4ff7a1';
   }
 
   /**
-   * Renderiza el grafo completo.
+   * Establece el modo de visualización
+   * @param {'dependencies'|'structure'} mode
+   */
+  setMode(mode) {
+    this.mode = mode;
+  }
+
+  /**
+   * Establece los datos del árbol de estructura (para modo 'structure')
+   * @param {Object} treeData - Datos del árbol de FileTreeViewer
+   */
+  setTreeData(treeData) {
+    this.treeData = treeData;
+  }
+
+  /**
+   * Renderiza según el modo actual.
    * @param {{ nodes, edges }} graph — salida de CodeAnalyzer
    * @param {{ filterErrors, filterCircular }} options
    */
@@ -30,6 +54,17 @@ export class GraphViewer {
     this.svg.selectAll('*').remove();
     this.graph = graph;
 
+    if (this.mode === 'structure') {
+      this._renderStructureTree();
+    } else {
+      this._renderDependencyGraph(graph, options);
+    }
+  }
+
+  /* =========================
+   * MODO 1: DEPENDENCY GRAPH
+   * ========================= */
+  _renderDependencyGraph(graph, options = {}) {
     const W = this.svg.node().clientWidth || 800;
     const H = this.svg.node().clientHeight || 600;
 
@@ -61,7 +96,6 @@ export class GraphViewer {
     let edges = graph.edges;
     if (options.filterCircular === false) edges = edges.filter(e => !e.circular);
 
-    // Preparar nodes/links para D3 (shallow copy para no mutar originals)
     const nodes = graph.nodes.map(n => ({ ...n }));
     const links = edges.map(e => ({ ...e }));
 
@@ -139,14 +173,129 @@ export class GraphViewer {
     // Deselect al click en fondo
     this.svg.on('click', () => this._deselectNode(node));
 
-    // Guardar referencias para métodos externos
     this._nodeSelection = node;
+    this._linkSelection = link;
   }
 
-  /* ---- PRIVADOS ---- */
+  /* =========================
+   * MODO 2: PROJECT STRUCTURE TREE
+   * ========================= */
+  _renderStructureTree() {
+    if (!this.treeData) return;
 
+    const W = this.svg.node().clientWidth || 800;
+    const H = this.svg.node().clientHeight || 600;
+
+    // Zoom
+    const zoom = d3
+      .zoom()
+      .scaleExtent([0.1, 4])
+      .on('zoom', e => this.container.attr('transform', e.transform));
+
+    this.svg.call(zoom);
+    this.container = this.svg.append('g').attr('transform', 'translate(40,40)');
+
+    // Tree layout
+    const tree = d3.tree().nodeSize([18, 220]);
+    const root = d3.hierarchy(this.treeData, d => d.children);
+    tree(root);
+
+    // Links
+    const link = this.container
+      .append('g')
+      .attr('fill', 'none')
+      .attr('stroke', '#3a3f55')
+      .attr('stroke-width', 1.5)
+      .selectAll('path')
+      .data(root.links())
+      .join('path')
+      .attr('d', d3.linkHorizontal()
+        .x(d => d.y)
+        .y(d => d.x)
+      );
+
+    // Nodes
+    const node = this.container
+      .append('g')
+      .selectAll('g')
+      .data(root.descendants())
+      .join('g')
+      .attr('transform', d => `translate(${d.y},${d.x})`)
+      .attr('class', d => `tree-node ${d.data.type}`)
+      .style('cursor', d => d.data.type === 'file' ? 'pointer' : 'default')
+      .on('click', (event, d) => {
+        event.stopPropagation();
+        if (d.data.type === 'file') {
+          this._selectNode(d.data, node);
+        } else {
+          this._toggleDirectory(d);
+        }
+      });
+
+    // Círculo / rectángulo
+    node.append('circle')
+      .attr('r', d => d.data.type === 'directory' ? 10 : 8)
+      .attr('fill', d => {
+        if (d.data.type === 'directory') return this.COLOR_DIR + '33';
+        if (d.data.errors > 0) return this.COLOR_ERROR + '33';
+        return (d.data.color || this.COLOR_FILE) + '33';
+      })
+      .attr('stroke', d => {
+        if (d.data.type === 'directory') return this.COLOR_DIR;
+        if (d.data.errors > 0) return this.COLOR_ERROR;
+        return d.data.color || this.COLOR_FILE;
+      })
+      .attr('stroke-width', 2);
+
+    // Icono de carpeta/archivo
+    node.append('text')
+      .attr('dy', '0.35em')
+      .attr('text-anchor', 'middle')
+      .attr('font-size', '10px')
+      .text(d => d.data.type === 'directory' ? (d._children ? '▶' : '▼') : '📄');
+
+    // Nombre
+    node.append('text')
+      .attr('x', d => d.data.type === 'directory' ? 14 : 12)
+      .attr('dy', '0.35em')
+      .attr('font-size', '11px')
+      .attr('fill', '#e0e4ec')
+      .text(d => d.data.name);
+
+    // Badges para archivos
+    node.filter(d => d.data.type === 'file')
+      .append('text')
+      .attr('x', d => 14 + (d.data.name.length * 6.5))
+      .attr('dy', '0.35em')
+      .attr('font-size', '9px')
+      .attr('fill', '#8b91a8')
+      .text(d => {
+        const parts = [];
+        if (d.data.lines) parts.push(`${d.data.lines}L`);
+        if (d.data.complexity > 5) parts.push(`⟳${d.data.complexity}`);
+        if (d.data.errors) parts.push(`⚠${d.data.errors}`);
+        return parts.join(' ');
+      });
+
+    this._treeRoot = root;
+    this._treeNodeSelection = node;
+  }
+
+  _toggleDirectory(d) {
+    if (d.children) {
+      d._children = d.children;
+      d.children = null;
+    } else {
+      d.children = d._children;
+      d._children = null;
+    }
+    this._renderStructureTree();
+  }
+
+  /* =========================
+   * COMUNES
+   * ========================= */
   _nodeRadius(d) {
-    // Radio proporcional a líneas de código, entre 10 y 28
     return Math.min(28, Math.max(10, Math.sqrt(d.lines || 50) * 1.4));
   }
 
@@ -169,10 +318,10 @@ export class GraphViewer {
       });
   }
 
-  _selectNode(d, nodeSelection) {
-    this.selected = d;
-    nodeSelection.classed('selected', n => n.id === d.id);
-    document.dispatchEvent(new CustomEvent('node-selected', { detail: { node: d } }));
+  _selectNode(data, nodeSelection) {
+    this.selected = data;
+    nodeSelection.classed('selected', n => (n.data || n).id === data.id || (n.data || n).path === data.path);
+    document.dispatchEvent(new CustomEvent('node-selected', { detail: { node: data } }));
   }
 
   _deselectNode(nodeSelection) {
@@ -181,8 +330,9 @@ export class GraphViewer {
     document.dispatchEvent(new CustomEvent('node-deselected'));
   }
 
-  /** Resaltar nodos conectados al seleccionado */
+  /** Resaltar nodos conectados al seleccionado (solo modo dependencies) */
   highlightConnections(nodeId) {
+    if (this.mode !== 'dependencies') return;
     if (!this._nodeSelection || !this.graph) return;
     const connected = new Set([nodeId]);
     for (const e of this.graph.edges) {
