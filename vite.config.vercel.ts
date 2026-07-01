@@ -3,12 +3,13 @@ import path from 'path';
 import comlink from 'vite-plugin-comlink';
 
 export default defineConfig({
-  root: '.',
-  publicDir: 'public',
+  root: 'public',
+  publicDir: '../public',
   build: {
-    outDir: 'dist',
+    outDir: '../dist/public',
     sourcemap: true,
     emptyOutDir: true,
+    assetsDir: 'assets',
     rollupOptions: {
       input: {
         main: path.resolve(__dirname, 'public/index.html'),
