@@ -1,0 +1,49 @@
+name: 'Code Graph Analyzer'
+description: 'Analyze code dependencies, detect errors, generate CODEMAP for AI agents'
+author: 'Santiago Malak'
+
+inputs:
+  path:
+    description: 'Path to analyze (relative to repository root)'
+    required: false
+    default: '.'
+  output-format:
+    description: 'Output format: json, markdown, mermaid'
+    required: false
+    default: 'json'
+  output-file:
+    description: 'Output file path (relative to repository root)'
+    required: false
+    default: 'CODEMAP.json'
+  config-file:
+    description: 'Path to codegraph.config.json (optional)'
+    required: false
+  fail-on-errors:
+    description: 'Fail the action if errors are detected'
+    required: false
+    default: 'false'
+  fail-on-circular:
+    description: 'Fail the action if circular dependencies are detected'
+    required: false
+    default: 'false'
+  max-complexity:
+    description: 'Fail if average complexity exceeds this threshold'
+    required: false
+
+outputs:
+  total-files:
+    description: 'Total files analyzed'
+  total-lines:
+    description: 'Total lines of code'
+  total-errors:
+    description: 'Total errors detected'
+  circular-deps:
+    description: 'Number of circular dependencies'
+  avg-complexity:
+    description: 'Average cyclomatic complexity'
+  output-file:
+    description: 'Path to generated output file'
+
+runs:
+  using: 'node20'
+  main: 'action/entrypoint.js'
