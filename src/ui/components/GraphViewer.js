@@ -183,9 +183,6 @@ export class GraphViewer {
   _renderStructureTree() {
     if (!this.treeData) return;
 
-    const W = this.svg.node().clientWidth || 800;
-    const H = this.svg.node().clientHeight || 600;
-
     // Zoom
     const zoom = d3
       .zoom()
@@ -201,7 +198,7 @@ export class GraphViewer {
     tree(root);
 
     // Links
-    const link = this.container
+    this.container
       .append('g')
       .attr('fill', 'none')
       .attr('stroke', '#3a3f55')
@@ -209,9 +206,12 @@ export class GraphViewer {
       .selectAll('path')
       .data(root.links())
       .join('path')
-      .attr('d', d3.linkHorizontal()
-        .x(d => d.y)
-        .y(d => d.x)
+      .attr(
+        'd',
+        d3
+          .linkHorizontal()
+          .x(d => d.y)
+          .y(d => d.x)
       );
 
     // Nodes
@@ -222,7 +222,7 @@ export class GraphViewer {
       .join('g')
       .attr('transform', d => `translate(${d.y},${d.x})`)
       .attr('class', d => `tree-node ${d.data.type}`)
-      .style('cursor', d => d.data.type === 'file' ? 'pointer' : 'default')
+      .style('cursor', d => (d.data.type === 'file' ? 'pointer' : 'default'))
       .on('click', (event, d) => {
         event.stopPropagation();
         if (d.data.type === 'file') {
@@ -233,8 +233,9 @@ export class GraphViewer {
       });
 
     // Círculo / rectángulo
-    node.append('circle')
-      .attr('r', d => d.data.type === 'directory' ? 10 : 8)
+    node
+      .append('circle')
+      .attr('r', d => (d.data.type === 'directory' ? 10 : 8))
       .attr('fill', d => {
         if (d.data.type === 'directory') return this.COLOR_DIR + '33';
         if (d.data.errors > 0) return this.COLOR_ERROR + '33';
@@ -248,24 +249,27 @@ export class GraphViewer {
       .attr('stroke-width', 2);
 
     // Icono de carpeta/archivo
-    node.append('text')
+    node
+      .append('text')
       .attr('dy', '0.35em')
       .attr('text-anchor', 'middle')
       .attr('font-size', '10px')
-      .text(d => d.data.type === 'directory' ? (d._children ? '▶' : '▼') : '📄');
+      .text(d => (d.data.type === 'directory' ? (d._children ? '▶' : '▼') : '📄'));
 
     // Nombre
-    node.append('text')
-      .attr('x', d => d.data.type === 'directory' ? 14 : 12)
+    node
+      .append('text')
+      .attr('x', d => (d.data.type === 'directory' ? 14 : 12))
       .attr('dy', '0.35em')
       .attr('font-size', '11px')
       .attr('fill', '#e0e4ec')
       .text(d => d.data.name);
 
     // Badges para archivos
-    node.filter(d => d.data.type === 'file')
+    node
+      .filter(d => d.data.type === 'file')
       .append('text')
-      .attr('x', d => 14 + (d.data.name.length * 6.5))
+      .attr('x', d => 14 + d.data.name.length * 6.5)
       .attr('dy', '0.35em')
       .attr('font-size', '9px')
       .attr('fill', '#8b91a8')
@@ -320,7 +324,10 @@ export class GraphViewer {
 
   _selectNode(data, nodeSelection) {
     this.selected = data;
-    nodeSelection.classed('selected', n => (n.data || n).id === data.id || (n.data || n).path === data.path);
+    nodeSelection.classed(
+      'selected',
+      n => (n.data || n).id === data.id || (n.data || n).path === data.path
+    );
     document.dispatchEvent(new CustomEvent('node-selected', { detail: { node: data } }));
   }
 

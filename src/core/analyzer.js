@@ -6,6 +6,7 @@
  */
 
 import { parserFactory } from './parsers/ParserFactory.js';
+import { pluginRegistry } from './plugins/PluginRegistry.ts';
 
 export class CodeAnalyzer {
   constructor() {
@@ -19,6 +20,7 @@ export class CodeAnalyzer {
       scss: { lang: 'SCSS', color: '#f74f9e' },
       md: { lang: 'Markdown', color: '#8b91a8' },
       json: { lang: 'JSON', color: '#4ff7a1' },
+      vue: { lang: 'Vue', color: '#42b883' },
     };
 
     this.IGNORE_DIRS = new Set([
@@ -51,12 +53,30 @@ export class CodeAnalyzer {
    * @returns {{ files, graph, summary, projectName }}
    */
   async analyzeFiles(fileList) {
+    // Hook: inicio de análisis
+    await pluginRegistry.emit('onAnalysisStart', { fileCount: fileList.length });
+
     const files = await this._filterAndRead(fileList);
     if (files.length === 0) throw new Error('No se encontraron archivos válidos.');
 
-    const analyzed = files.map(f => this._analyzeFile(f));
+    const analyzed = [];
+    for (const file of files) {
+      const result = this._analyzeFile(file);
+      analyzed.push(result);
+
+      // Hook: archivo analizado
+      await pluginRegistry.emit('onFileAnalyzed', result);
+    }
+
     const graph = this._buildGraph(analyzed);
+
+    // Hook: grafo construido
+    await pluginRegistry.emit('onGraphBuilt', graph);
+
     const summary = this._buildSummary(analyzed, graph);
+
+    // Hook: análisis completado
+    await pluginRegistry.emit('onAnalysisComplete', { files: analyzed, graph, summary });
 
     return {
       files: analyzed,
