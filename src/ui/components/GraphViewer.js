@@ -65,8 +65,16 @@ export class GraphViewer {
    * MODO 1: DEPENDENCY GRAPH
    * ========================= */
   _renderDependencyGraph(graph, options = {}) {
-    const W = this.svg.node().clientWidth || 800;
-    const H = this.svg.node().clientHeight || 600;
+    // Force SVG to fill container
+    const svgNode = this.svg.node();
+    if (svgNode) {
+      svgNode.style.width = '100%';
+      svgNode.style.height = '100%';
+      svgNode.style.display = 'block';
+    }
+
+    const W = svgNode?.clientWidth || 1200;
+    const H = svgNode?.clientHeight || 800;
 
     // Zoom
     const zoom = d3
@@ -112,7 +120,8 @@ export class GraphViewer {
       )
       .force('charge', d3.forceManyBody().strength(-300))
       .force('center', d3.forceCenter(W / 2, H / 2))
-      .force('collide', d3.forceCollide(30));
+      .force('collide', d3.forceCollide(30))
+      .force('bounds', this._boundsForce(W, H));
 
     // Links
     const link = this.container
@@ -170,6 +179,9 @@ export class GraphViewer {
       node.attr('transform', d => `translate(${d.x},${d.y})`);
     });
 
+    // Auto-center and scale graph
+    this._centerGraph(nodes, W, H);
+
     // Deselect al click en fondo
     this.svg.on('click', () => this._deselectNode(node));
 
@@ -177,11 +189,60 @@ export class GraphViewer {
     this._linkSelection = link;
   }
 
+  _boundsForce(width, height) {
+    const margin = 50;
+    return () => {
+      this.sim.nodes().forEach(node => {
+        node.x = Math.max(margin, Math.min(width - margin, node.x));
+        node.y = Math.max(margin, Math.min(height - margin, node.y));
+      });
+    };
+  }
+
+  _centerGraph(nodes, width, height) {
+    if (!nodes.length) return;
+
+    const minX = d3.min(nodes, d => d.x);
+    const maxX = d3.max(nodes, d => d.x);
+    const minY = d3.min(nodes, d => d.y);
+    const maxY = d3.max(nodes, d => d.y);
+
+    const graphWidth = maxX - minX;
+    const graphHeight = maxY - minY;
+
+    if (graphWidth === 0 || graphHeight === 0) return;
+
+    const margin = 50;
+    const scale = Math.min(
+      (width - 2 * margin) / graphWidth,
+      (height - 2 * margin) / graphHeight,
+      1
+    );
+
+    const centerX = (minX + maxX) / 2;
+    const centerY = (minY + maxY) / 2;
+
+    const transform = d3.zoomIdentity
+      .translate(width / 2, height / 2)
+      .scale(scale)
+      .translate(-centerX, -centerY);
+
+    this.svg.transition().duration(500).call(d3.zoom().transform, transform);
+  }
+
   /* =========================
    * MODO 2: PROJECT STRUCTURE TREE
    * ========================= */
   _renderStructureTree() {
     if (!this.treeData) return;
+
+    // Force SVG to fill container
+    const svgNode = this.svg.node();
+    if (svgNode) {
+      svgNode.style.width = '100%';
+      svgNode.style.height = '100%';
+      svgNode.style.display = 'block';
+    }
 
     // Zoom
     const zoom = d3
@@ -192,9 +253,12 @@ export class GraphViewer {
     this.svg.call(zoom);
     this.container = this.svg.append('g').attr('transform', 'translate(40,40)');
 
-    // Tree layout
-    const tree = d3.tree().nodeSize([18, 220]);
-    const root = d3.hierarchy(this.treeData, d => d.children);
+    // Tree layout - reduced horizontal spacing
+    const tree = d3.tree().nodeSize([18, 160]);
+    const displayData = this.treeData.children
+      ? { ...this.treeData, children: this.treeData.children }
+      : this.treeData;
+    const root = d3.hierarchy(displayData, d => d.children);
     tree(root);
 
     // Links
@@ -214,11 +278,13 @@ export class GraphViewer {
           .y(d => d.x)
       );
 
-    // Nodes
+    // Nodes - skip root node (depth 0) if it has no name
+    const descendants = root.descendants().filter(d => d.depth > 0 || d.data.name);
+
     const node = this.container
       .append('g')
       .selectAll('g')
-      .data(root.descendants())
+      .data(descendants)
       .join('g')
       .attr('transform', d => `translate(${d.y},${d.x})`)
       .attr('class', d => `tree-node ${d.data.type}`)
@@ -232,7 +298,7 @@ export class GraphViewer {
         }
       });
 
-    // Círculo / rectángulo
+    // Circle
     node
       .append('circle')
       .attr('r', d => (d.data.type === 'directory' ? 10 : 8))
@@ -248,7 +314,7 @@ export class GraphViewer {
       })
       .attr('stroke-width', 2);
 
-    // Icono de carpeta/archivo
+    // Icon
     node
       .append('text')
       .attr('dy', '0.35em')
@@ -256,7 +322,7 @@ export class GraphViewer {
       .attr('font-size', '10px')
       .text(d => (d.data.type === 'directory' ? (d._children ? '▶' : '▼') : '📄'));
 
-    // Nombre
+    // Name
     node
       .append('text')
       .attr('x', d => (d.data.type === 'directory' ? 14 : 12))
@@ -265,7 +331,7 @@ export class GraphViewer {
       .attr('fill', '#e0e4ec')
       .text(d => d.data.name);
 
-    // Badges para archivos
+    // Badges for files
     node
       .filter(d => d.data.type === 'file')
       .append('text')
@@ -281,6 +347,9 @@ export class GraphViewer {
         return parts.join(' ');
       });
 
+    // Auto-center tree
+    this._centerTree(root);
+
     this._treeRoot = root;
     this._treeNodeSelection = node;
   }
@@ -294,6 +363,33 @@ export class GraphViewer {
       d._children = null;
     }
     this._renderStructureTree();
+  }
+
+  _centerTree(root) {
+    const nodes = root.descendants().filter(d => d.depth > 0);
+    if (nodes.length === 0) return;
+
+    const minY = d3.min(nodes, d => d.x);
+    const maxY = d3.max(nodes, d => d.x);
+    const minX = d3.min(nodes, d => d.y);
+    const maxX = d3.max(nodes, d => d.y);
+
+    const treeWidth = maxX - minX;
+    const treeHeight = maxY - minY;
+
+    const svgWidth = this.svg.node().clientWidth || 1200;
+    const svgHeight = this.svg.node().clientHeight || 800;
+
+    const scale = Math.min((0.8 * svgWidth) / treeWidth, (0.8 * svgHeight) / treeHeight, 1);
+    const centerX = (minX + maxX) / 2;
+    const centerY = (minY + maxY) / 2;
+
+    const transform = d3.zoomIdentity
+      .translate(svgWidth / 2, svgHeight / 2)
+      .scale(scale)
+      .translate(-centerX, -centerY);
+
+    this.svg.transition().duration(500).call(d3.zoom().transform, transform);
   }
 
   /* =========================
