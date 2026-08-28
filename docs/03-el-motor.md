@@ -84,6 +84,8 @@ Ver [`04-el-grafo.md`](./04-el-grafo.md). En resumen:
    forman parte de un ciclo.
 5. **Dominios** (`domains.ts`): algoritmo de Louvain sobre el grafo de imports.
    Agrupa archivos que se importan mucho entre sí y les pone nombre según la carpeta.
+6. **Git** (`git.ts`, opcional): si le pasás el historial (`options.git`), agrega
+   `churn` y `hotspot` a cada archivo. Ver [`07-capa-git.md`](./07-capa-git.md).
 
 ## Paso 4 — El resumen (`metrics/summary.ts`)
 

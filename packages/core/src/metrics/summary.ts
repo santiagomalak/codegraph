@@ -12,6 +12,7 @@ import type {
   ParsedFile,
   ProjectSummary,
 } from '../model.js';
+import { computeHotspots } from '../git.js';
 
 const LANGUAGE_LABEL: Record<LanguageId, string> = {
   python: 'Python',
@@ -203,5 +204,6 @@ export function buildSummary(
     entryPoints,
     stack: detectStack(files),
     health: computeHealth(files, graph, avgComplexity, issuesBySeverity.error),
+    hotspots: computeHotspots(files, graph),
   };
 }

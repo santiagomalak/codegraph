@@ -34,6 +34,8 @@ export function toGraphJson(graph: KnowledgeGraph, opts: GraphJsonOptions = {}):
           issues: n.issues,
           domain: n.domain,
           risk: n.risk,
+          ...(n.churn !== undefined ? { churn: n.churn } : {}),
+          ...(n.hotspot !== undefined ? { hotspot: n.hotspot } : {}),
         };
       }),
     edges: graph.edges

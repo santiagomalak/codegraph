@@ -42,6 +42,7 @@ Las más útiles:
 - **`impact_of`** — antes de refactorizar: qué archivos dependen (directa o
   indirectamente) del que vas a tocar.
 - **`find_symbol`** — dónde está una función y quién la llama.
+- **`hotspots`** — archivos complejos que además cambian mucho (según git).
 
 ## Cómo está hecho
 

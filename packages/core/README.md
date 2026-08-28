@@ -32,7 +32,11 @@ analysis.summary  // ProjectSummary — totales, stack detectado, health score
    `symbol → symbol` (calls), `file → domain` (member-of).
 5. **Detecta ciclos** de dependencias (algoritmo de Tarjan).
 6. **Agrupa en dominios** con detección de comunidades (Louvain) sobre el grafo de imports.
-7. **Resume** todo y calcula un **health score** 0–100 con el desglose.
+7. **Cruza con git** (si le pasás el historial): calcula **hotspots** = complejo + cambia mucho.
+8. **Resume** todo y calcula un **health score** 0–100 con el desglose.
+
+El historial de git lo lee `readGitHistory` de `@codegraph/core/node` y se pasa
+por `options.git`. El core en sí no toca git (así sigue andando en el navegador).
 
 ## Estructura del código
 
@@ -55,9 +59,13 @@ src/
 │   └── build-graph.ts       # arma nodos y aristas
 ├── metrics/
 │   ├── file-metrics.ts      # loc / sloc / comentarios
-│   └── summary.ts           # ProjectSummary + stack + health
+│   └── summary.ts           # ProjectSummary + stack + health + hotspots
+├── git.ts                   # cruza churn + complejidad → hotspot
+├── queries.ts               # consultas puras sobre el análisis (las usa el MCP)
+├── node-fs.ts               # discoverFiles + readGitHistory (solo Node → @codegraph/core/node)
 └── exporters/
-    └── codemap.ts           # ProjectAnalysis → CODEMAP.md
+    ├── codemap.ts           # ProjectAnalysis → CODEMAP.md (con niveles)
+    └── graph-json.ts        # grafo → JSON slim o completo
 ```
 
 ## Scripts

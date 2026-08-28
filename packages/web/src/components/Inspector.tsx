@@ -85,6 +85,27 @@ function FileView({
         <Info label="Líneas" value={String(node.loc ?? 0)} />
         <Info label="Complejidad" value={String(node.complexity ?? 0)} />
         <Info label="Doc" value={file ? `${file.metrics.docCoverage}%` : '—'} />
+        {file?.git && (
+          <>
+            <Info label="Commits" value={String(file.git.commits)} />
+            <Info label="Autores" value={String(file.git.authors)} />
+            {node.hotspot !== undefined && (
+              <div
+                className={`col-span-2 rounded px-2 py-1 ${
+                  node.hotspot > 0.5
+                    ? 'bg-orange-500/15 text-orange-300'
+                    : 'bg-ink-850 text-slate-400'
+                }`}
+              >
+                🔥 Hotspot: {Math.round(node.hotspot * 100)}/100
+                <span className="text-[11px] opacity-70">
+                  {' '}
+                  · último cambio {file.git.lastCommit.slice(0, 10)}
+                </span>
+              </div>
+            )}
+          </>
+        )}
         {domain && (
           <div className="col-span-2 flex items-center gap-2">
             <span className="h-2.5 w-2.5 rounded-full" style={{ background: domain.color }} />

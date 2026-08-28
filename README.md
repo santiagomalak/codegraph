@@ -36,6 +36,7 @@ npm run analyze -- "C:\ruta\a\mi-proyecto"
 - **Dependencias**: imports internos y externos, con resolución de rutas.
 - **Dependencias circulares** (algoritmo de Tarjan).
 - **Dominios**: agrupa el proyecto en áreas automáticamente (algoritmo de Louvain).
+- **Hotspots**: cruza el historial de git (churn) con la complejidad → dónde está el riesgo real.
 - **Métricas**: líneas, complejidad ciclomática, cobertura de documentación.
 - **Issues**: `console.log`, `eval`, `debugger`, `== None`, `except:` pelado, TODOs…
 - **Stack**: React, Vite, Django, FastAPI, Tailwind, Docker… por archivos e imports.
@@ -72,6 +73,7 @@ analizar el propio proyecto vía el servidor MCP (`overview`, `describe_file`,
 | [docs/04 · El grafo](./docs/04-el-grafo.md) | Nodos, aristas, dominios, ciclos |
 | [docs/05 · La interfaz](./docs/05-la-interfaz.md) | Cómo ver el grafo en el navegador |
 | [docs/06 · El servidor MCP](./docs/06-servidor-mcp.md) | Cómo Claude consulta el grafo |
+| [docs/07 · La capa git](./docs/07-capa-git.md) | Hotspots: complejo + cambia mucho |
 
 ## Scripts
 

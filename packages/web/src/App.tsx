@@ -90,16 +90,25 @@ export function App() {
   const domainLabel =
     (domainFilter && analysis?.graph.domains.find((d) => d.id === domainFilter)?.label) || null;
 
+  const selectFile = (path: string) => {
+    if (!analysis) return;
+    setMode('files');
+    setDomainFilter(null);
+    const node = buildVizGraph(analysis, {
+      mode: 'files',
+      showExternal: true,
+      domainFilter: null,
+    }).nodes.find((n) => n.id === path);
+    if (node) setSelected(node);
+  };
+
   const onPalettePick = (item: PaletteItem) => {
     if (item.kind === 'domain') {
       setDomainFilter(item.id);
       setSelected(null);
       return;
     }
-    setMode('files');
-    setDomainFilter(null);
-    const node = analysis && buildVizGraph(analysis, { mode: 'files', showExternal: true, domainFilter: null }).nodes.find((n) => n.id === item.id);
-    if (node) setSelected(node);
+    selectFile(item.id);
   };
 
   if (error) {
@@ -171,6 +180,7 @@ export function App() {
             setDomainFilter((cur) => (cur === id ? null : id));
             setSelected(null);
           }}
+          onPickFile={selectFile}
         />
         <main className="relative min-w-0 flex-1 bg-ink-950">
           <ForceGraph

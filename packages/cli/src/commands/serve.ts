@@ -14,7 +14,7 @@ import { extname, join, resolve } from 'node:path';
 import { fileURLToPath } from 'node:url';
 import pc from 'picocolors';
 import { analyzeProject } from '@codegraph/core';
-import { discoverFiles } from '@codegraph/core/node';
+import { discoverFiles, readGitHistory } from '@codegraph/core/node';
 
 const MIME: Record<string, string> = {
   '.html': 'text/html; charset=utf-8',
@@ -48,7 +48,11 @@ export async function runServe(
   async function analyze(): Promise<string> {
     const started = Date.now();
     const { files } = await discoverFiles(rootDir);
-    const analysis = await analyzeProject(files, { projectName: rootDir.split(/[/\\]/).pop() });
+    const git = await readGitHistory(rootDir, files.map((f) => f.path));
+    const analysis = await analyzeProject(files, {
+      projectName: rootDir.split(/[/\\]/).pop(),
+      git: Object.keys(git).length > 0 ? git : undefined,
+    });
     cachedJson = JSON.stringify(analysis);
     console.log(
       pc.green(

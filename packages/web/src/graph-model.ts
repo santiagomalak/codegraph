@@ -25,6 +25,8 @@ export interface VizNode {
   complexity?: number;
   issues?: number;
   risk?: number;
+  churn?: number;
+  hotspot?: number;
   inCycle?: boolean;
 
   // symbol
@@ -138,6 +140,8 @@ export function buildVizGraph(analysis: ProjectAnalysis, opts: BuildOptions): Vi
         complexity: n.complexity ?? 1,
         issues: n.issues ?? 0,
         risk: n.risk ?? 0,
+        churn: n.churn,
+        hotspot: n.hotspot,
         domain: n.domain,
         color: colorFor(n.domain),
         inCycle: inCycle.has(n.id),

@@ -91,6 +91,23 @@ export function toCodemapMarkdown(analysis: ProjectAnalysis, opts: CodemapOption
     add(2, 'compact', lines.join('\n'));
   }
 
+  // ── 2.5 Hotspots (git) ─────────────────────────────────────────────────
+  if (summary.hotspots.length > 0) {
+    const lines = [
+      '## 🔥 Hotspots (complejo + cambia mucho)',
+      '',
+      '| Archivo | Score | Complejidad | Commits |',
+      '|---|--:|--:|--:|',
+      ...summary.hotspots
+        .slice(0, detail === 'compact' ? 5 : 12)
+        .map(
+          (h) =>
+            `| \`${h.path}\` | ${Math.round(h.score * 100)} | ${h.complexity} | ${h.commits} |`,
+        ),
+    ];
+    add(3, 'compact', lines.join('\n'));
+  }
+
   // ── 3. Puntos de entrada ───────────────────────────────────────────────
   if (summary.entryPoints.length > 0) {
     add(

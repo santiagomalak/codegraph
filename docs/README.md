@@ -13,6 +13,7 @@ y pensado para que lo entiendas sin ser experto en compiladores.
 | [04 · El grafo de conocimiento](./04-el-grafo.md) | Qué son los nodos, aristas, dominios y ciclos |
 | [05 · La interfaz web](./05-la-interfaz.md) | Cómo ver el grafo en el navegador |
 | [06 · El servidor MCP](./06-servidor-mcp.md) | Cómo Claude consulta el grafo sin cargarlo entero |
+| [07 · La capa git](./07-capa-git.md) | Hotspots: complejo + cambia mucho |
 
 Ver también:
 - [`MIGRATION.md`](../MIGRATION.md) — qué cambió respecto de la versión anterior (v2)
@@ -42,15 +43,19 @@ Ver también:
 - `codegraph serve --watch`: live reload por SSE.
 - Fallback a demo cuando no hay servidor (deploy estático).
 
-✅ **Fase 3 — IA (v1)**
-- `packages/mcp`: servidor MCP con 11 herramientas (`overview`, `describe_file`,
-  `impact_of`, `find_symbol`…) para que Claude consulte el grafo sin cargarlo.
+✅ **Fase 3 — IA**
+- `packages/mcp`: servidor MCP con 12 herramientas (`overview`, `describe_file`,
+  `impact_of`, `find_symbol`, `hotspots`…) para que Claude consulte el grafo sin cargarlo.
 - CODEMAP con niveles (`compact`/`normal`/`full`) y presupuesto de tokens.
 - `graph.json` slim por defecto (−72% de tamaño).
 - Funciones de consulta puras en `core/src/queries.ts`.
+
+✅ **Capa git**
+- Lee el historial y calcula **hotspots** (complejo + cambia mucho) por archivo.
+- Se ve en el CLI, el CODEMAP, la web (glow naranja + lista clicable) y el MCP.
 
 🚧 **Sigue**
 - Render en canvas/WebGL para proyectos muy grandes.
 - Chat con el proyecto (RAG sobre el grafo) + "explicá este nodo" en la UI.
 - Extensión de VS Code.
-- Capa git (churn, hotspots, timeline).
+- Timeline / coupling temporal (evolución del grafo commit a commit).

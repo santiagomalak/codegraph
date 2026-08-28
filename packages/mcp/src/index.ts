@@ -34,6 +34,7 @@ import {
   fileDetail,
   domainDetail,
 } from '@codegraph/core';
+// (hotspots viven en analysis.summary; no hace falta importar helpers)
 import { Project } from './project.js';
 
 function resolveProjectDir(): string {
@@ -178,6 +179,26 @@ server.registerTool(
   async ({ name }) => {
     const hits = findSymbol(await project.get(), name);
     return text(hits.length ? hits : `No se encontró ningún símbolo llamado "${name}".`);
+  },
+);
+
+// ── hotspots ────────────────────────────────────────────────────────────────
+server.registerTool(
+  'hotspots',
+  {
+    title: 'Hotspots del proyecto',
+    description:
+      'Archivos que son complejos Y cambian mucho (según git). Suelen ser donde ' +
+      'están los bugs y donde más rinde refactorizar. Vacío si no hay historial de git.',
+    inputSchema: {},
+  },
+  async () => {
+    const a = await project.get();
+    return text(
+      a.summary.hotspots.length
+        ? a.summary.hotspots
+        : 'Sin datos de hotspots (¿la carpeta no es un repo git?).',
+    );
   },
 );
 

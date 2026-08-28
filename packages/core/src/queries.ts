@@ -92,6 +92,10 @@ export interface FileDetail {
   issues: { rule: string; severity: string; message: string; line: number }[];
   dependents: string[];
   inCycle: boolean;
+  /** Datos de git, si había historial. */
+  git?: ParsedFile['git'];
+  /** Hotspot 0..1 (complejidad × churn), si había git. */
+  hotspot?: number;
 }
 
 /** Vista compacta de un archivo (sin el contenido, sin snippets largos). */
@@ -126,6 +130,8 @@ export function fileDetail(analysis: ProjectAnalysis, path: string): FileDetail 
     })),
     dependents: dependentsOf(analysis, path),
     inCycle: analysis.graph.cycles.some((c) => c.includes(path)),
+    git: file.git,
+    hotspot: node?.hotspot,
   };
 }
 

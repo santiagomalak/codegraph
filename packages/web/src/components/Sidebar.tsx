@@ -25,10 +25,12 @@ export function Sidebar({
   analysis,
   domainFilter,
   onPickDomain,
+  onPickFile,
 }: {
   analysis: ProjectAnalysis;
   domainFilter: string | null;
   onPickDomain: (id: string) => void;
+  onPickFile: (path: string) => void;
 }) {
   const s = analysis.summary;
   const langs = Object.entries(s.filesByLanguage).sort((a, b) => b[1] - a[1]);
@@ -126,6 +128,31 @@ export function Sidebar({
             ))}
         </div>
       </div>
+
+      {s.hotspots.length > 0 && (
+        <div>
+          <div className="mb-1.5 text-xs uppercase tracking-widest text-slate-500">
+            🔥 Hotspots · complejo + cambia mucho
+          </div>
+          <div className="flex flex-col gap-0.5">
+            {s.hotspots.slice(0, 6).map((h) => (
+              <button
+                key={h.path}
+                onClick={() => onPickFile(h.path)}
+                className="flex items-center gap-2 rounded-md px-2 py-1 text-xs hover:bg-ink-800"
+              >
+                <span className="w-7 shrink-0 text-right font-mono text-orange-400">
+                  {Math.round(h.score * 100)}
+                </span>
+                <span className="flex-1 truncate text-left text-slate-300" title={h.path}>
+                  {h.path.split('/').pop()}
+                </span>
+                <span className="text-slate-600">{h.commits}c</span>
+              </button>
+            ))}
+          </div>
+        </div>
+      )}
 
       {s.health.factors.length > 0 && (
         <div>

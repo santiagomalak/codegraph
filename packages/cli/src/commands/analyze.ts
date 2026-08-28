@@ -18,7 +18,7 @@ import {
   type CodemapDetail,
   type ProjectAnalysis,
 } from '@codegraph/core';
-import { discoverFiles } from '@codegraph/core/node';
+import { discoverFiles, readGitHistory } from '@codegraph/core/node';
 
 export interface AnalyzeFlags {
   out?: string;
@@ -63,6 +63,16 @@ function printSummary(analysis: ProjectAnalysis): void {
   console.log(`  Dominios      ${analysis.graph.domains.length}`);
   if (s.stack.length) console.log(`  Stack         ${pc.cyan(s.stack.join(', '))}`);
 
+  if (s.hotspots.length > 0) {
+    console.log(pc.dim('\n  Hotspots (complejo + cambia mucho):'));
+    for (const h of s.hotspots.slice(0, 5)) {
+      console.log(
+        pc.dim(`    ${String(Math.round(h.score * 100)).padStart(3)}  ${h.path}  `) +
+          pc.dim(`(cx ${h.complexity}, ${h.commits} commits)`),
+      );
+    }
+  }
+
   if (s.health.factors.length) {
     console.log(pc.dim('\n  Qué le baja la nota:'));
     for (const f of s.health.factors) {
@@ -88,9 +98,13 @@ export async function runAnalyze(target: string, flags: AnalyzeFlags): Promise<v
     process.exit(1);
   }
 
+  const git = await readGitHistory(rootDir, files.map((f) => f.path));
+  const hasGit = Object.keys(git).length > 0;
+
   let lastPct = -1;
   const analysis = await analyzeProject(files, {
     projectName,
+    git: hasGit ? git : undefined,
     onProgress: (done, total) => {
       const pct = Math.floor((done / total) * 100);
       if (pct !== lastPct && pct % 10 === 0) {

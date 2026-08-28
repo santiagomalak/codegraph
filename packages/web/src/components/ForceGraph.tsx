@@ -416,9 +416,25 @@ export function ForceGraph({
                   onSelect(n);
                 }}
               >
-                {/* halo de riesgo */}
-                {(n.risk ?? 0) > 0.5 && (
-                  <circle r={r + 5} fill={n.color} opacity={0.18} filter="url(#glow)" />
+                {/* halo: hotspot (git) si hay, si no riesgo (complejidad+issues) */}
+                {(n.hotspot ?? n.risk ?? 0) > 0.5 && (
+                  <>
+                    <circle
+                      r={r + 6}
+                      fill={(n.hotspot ?? 0) > 0.5 ? '#f97316' : n.color}
+                      opacity={0.2}
+                      filter="url(#glow)"
+                    />
+                    {(n.hotspot ?? 0) > 0.6 && (
+                      <circle
+                        r={r + 4}
+                        fill="none"
+                        stroke="#fb923c"
+                        strokeWidth={1.5}
+                        opacity={0.7}
+                      />
+                    )}
+                  </>
                 )}
                 {/* forma */}
                 {isClass ? (

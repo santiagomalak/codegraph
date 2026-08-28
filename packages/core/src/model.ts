@@ -95,6 +95,23 @@ export interface FileMetrics {
   docCoverage: number;
 }
 
+/**
+ * Datos que salen del historial de git para un archivo.
+ * Solo aparece si el análisis se corrió con historial disponible.
+ */
+export interface GitStats {
+  /** Cantidad de commits que tocaron este archivo. */
+  commits: number;
+  /** Autores distintos que lo tocaron. */
+  authors: number;
+  /** Líneas agregadas + borradas a lo largo de toda su historia. */
+  linesChanged: number;
+  /** Fecha ISO del primer commit que lo incluyó. */
+  firstCommit: string;
+  /** Fecha ISO del último commit que lo tocó. */
+  lastCommit: string;
+}
+
 /** El resultado de parsear UN archivo. */
 export interface ParsedFile {
   path: string;
@@ -105,6 +122,8 @@ export interface ParsedFile {
   exports: string[];
   symbols: SymbolDef[];
   issues: Issue[];
+  /** Datos de git, si había historial. */
+  git?: GitStats;
   /** Mensaje de error si el parser falló con este archivo (el resto queda vacío). */
   parseError?: string;
 }
@@ -145,8 +164,15 @@ export interface GraphNode {
   issues?: number;
   /** Id del nodo `domain` al que pertenece este archivo. */
   domain?: string;
-  /** Métrica de "riesgo" 0..1 (complejidad + issues + churn si hay git). */
+  /** Métrica de "riesgo" 0..1 (complejidad + issues). */
   risk?: number;
+  /** Commits que tocaron el archivo (solo si hubo historial de git). */
+  churn?: number;
+  /**
+   * "Hotspot" 0..1: complejidad × churn. Alto = archivo complejo que además
+   * cambia mucho → donde suelen vivir los bugs y donde más rinde refactorizar.
+   */
+  hotspot?: number;
 
   // Presentes cuando type === 'symbol'
   kind?: SymbolDef['kind'];
@@ -213,6 +239,16 @@ export interface ProjectSummary {
   /** Tecnologías detectadas: ["React", "Vite", "Tailwind CSS", "FastAPI"...]. */
   stack: string[];
   health: HealthScore;
+  /**
+   * Los archivos más "hotspot" (complejo + cambia mucho), ordenados.
+   * Vacío si no hubo historial de git.
+   */
+  hotspots: Array<{
+    path: string;
+    score: number;
+    complexity: number;
+    commits: number;
+  }>;
 }
 
 // ────────────────────────────────────────────────────────────────────────────
@@ -239,4 +275,10 @@ export interface AnalyzeOptions {
   wasmDir?: string;
   /** Callback de progreso, se llama una vez por archivo parseado. */
   onProgress?: (done: number, total: number, path: string) => void;
+  /**
+   * Estadísticas de git por archivo (path relativo → GitStats). Si se pasa,
+   * el análisis agrega `churn`/`hotspot` a los archivos y `summary.hotspots`.
+   * La lee `readGitHistory` de `@codegraph/core/node`.
+   */
+  git?: Record<string, GitStats>;
 }

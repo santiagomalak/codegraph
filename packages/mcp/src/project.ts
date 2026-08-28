@@ -8,7 +8,7 @@
 
 import { basename } from 'node:path';
 import { analyzeProject, type ProjectAnalysis } from '@codegraph/core';
-import { discoverFiles } from '@codegraph/core/node';
+import { discoverFiles, readGitHistory } from '@codegraph/core/node';
 
 export class Project {
   private analysis: ProjectAnalysis | null = null;
@@ -24,7 +24,11 @@ export class Project {
         if (files.length === 0) {
           throw new Error(`No hay archivos de código soportados en ${this.rootDir}`);
         }
-        const result = await analyzeProject(files, { projectName: basename(this.rootDir) });
+        const git = await readGitHistory(this.rootDir, files.map((f) => f.path));
+        const result = await analyzeProject(files, {
+          projectName: basename(this.rootDir),
+          git: Object.keys(git).length > 0 ? git : undefined,
+        });
         this.analysis = result;
         return result;
       })();

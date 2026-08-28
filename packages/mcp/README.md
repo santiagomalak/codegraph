@@ -53,6 +53,7 @@ hasta que llame a `refresh`.
 | `dependents_of` | Quién importa un archivo (directo) |
 | `impact_of` | Todo lo que se rompe si tocás un archivo (transitivo) |
 | `find_symbol` | Dónde se define una función/clase y quién la llama |
+| `hotspots` | Archivos complejos que además cambian mucho (según git) |
 | `circular_dependencies` | Los ciclos de imports |
 | `search` | Archivos cuya ruta contiene un texto |
 | `refresh` | Vuelve a analizar la carpeta |
