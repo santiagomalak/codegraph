@@ -19,7 +19,11 @@
       "import": "./dist/queries.js"
     }
   },
-  "files": ["dist", "wasm", "README.md"],
+  "files": [
+    "dist",
+    "wasm",
+    "README.md"
+  ],
   "scripts": {
     "build": "tsc -p tsconfig.json",
     "dev": "tsc -p tsconfig.json --watch",
@@ -30,13 +34,13 @@
   "dependencies": {
     "graphology": "^0.25.4",
     "graphology-communities-louvain": "^2.0.1",
-    "web-tree-sitter": "^0.22.6",
-    "tree-sitter-wasms": "^0.1.11"
+    "tree-sitter-wasms": "^0.1.11",
+    "web-tree-sitter": "^0.22.6"
   },
   "devDependencies": {
     "@types/node": "^20.11.0",
     "typescript": "^5.3.3",
-    "vitest": "^1.6.0"
+    "vitest": "^3.2.0"
   },
   "license": "MIT"
 }
