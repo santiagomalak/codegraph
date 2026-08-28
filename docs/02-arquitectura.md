@@ -2,26 +2,29 @@
 
 ## Monorepo
 
-Un solo repositorio con varios paquetes independientes que comparten el motor.
-Se maneja con **npm workspaces** (ya viene con npm, no hay que instalar nada).
+Un solo repositorio con cuatro paquetes que comparten el motor. Se maneja con
+**npm workspaces** (ya viene con npm, no hay que instalar nada).
 
 ```
-code-graph-unified/
-├── package.json          # raíz: define los workspaces y scripts globales
+codegraph/
+├── package.json          # raíz: workspaces + scripts globales
+├── .mcp.json             # config del servidor MCP para Claude Code
+├── vercel.json           # build del deploy estático (la web en modo demo)
 ├── packages/
 │   ├── core/             # @codegraph/core — el motor de análisis
 │   ├── cli/              # @codegraph/cli  — el comando `codegraph`
-│   └── web/              # @codegraph/web  — la interfaz (Fase 2)
+│   ├── mcp/              # @codegraph/mcp  — servidor MCP para Claude
+│   └── web/              # @codegraph/web  — la interfaz (React + Vite + d3-force)
 ├── docs/                 # esta documentación
-├── src/ , public/        # ⚠️ la web VIEJA (v2). Se migra a packages/web y se borra.
-└── landing/              # landing page (Astro), sin tocar por ahora
+├── scripts/gen-demo.mjs  # genera el análisis de ejemplo para el deploy
+└── landing/              # ⚠️ scaffold de landing en Astro, heredado de la v2 (sin uso)
 ```
 
 ### Por qué monorepo
 
-- El **motor** (`core`) es uno solo y lo usan todos: el CLI, la web y (pronto) el
-  servidor MCP. Si estuviera copiado en cada lado, se desincronizaría.
-- Cada paquete tiene su `package.json`, su `README.md` y su responsabilidad clara.
+- El **motor** (`core`) es uno solo y lo usan los otros tres paquetes. Copiado en
+  cada lado se desincronizaría.
+- Cada paquete tiene su `package.json`, su `README.md` y una responsabilidad clara.
 - `npm install` en la raíz instala y "linkea" todo junto.
 
 ## Los paquetes
@@ -29,35 +32,56 @@ code-graph-unified/
 ### `@codegraph/core` — el motor
 
 Recibe archivos (texto) y devuelve datos. **No lee del disco ni hace requests.**
-Eso lo hace que sirva igual en Node y en el navegador.
+Por eso sirve igual en Node y en el navegador.
 
 ```
-archivos  →  [ core ]  →  ProjectAnalysis { files, graph, summary }
+SourceFile[]  →  [ core ]  →  ProjectAnalysis { files, graph, summary, timeline?, coupling? }
 ```
 
-Ver [`03-el-motor.md`](./03-el-motor.md) para el detalle.
+Subrutas exportadas:
+
+| Import | Qué trae | Dónde corre |
+|---|---|---|
+| `@codegraph/core` | `analyzeProject`, exportadores, tipos | Node + navegador |
+| `@codegraph/core/queries` | funciones de consulta puras (`dependentsOf`, `impactOf`…) | Node + navegador |
+| `@codegraph/core/node` | `discoverFiles`, `readGitHistory`, `readProjectConfig` | **solo Node** (toca disco y `git`) |
+
+Detalle del pipeline en [`03-el-motor.md`](./03-el-motor.md).
 
 ### `@codegraph/cli` — el comando
 
-La capa que **sí** toca el disco. Recorre una carpeta, lee los archivos, se los
-pasa al motor y escribe los resultados.
+La capa que **sí** toca el disco. `commander` para los argumentos.
 
 ```
 codegraph analyze ./mi-proyecto
-  → recorre la carpeta (discover.ts)
-  → analyzeProject(archivos)          [core]
-  → escribe .codegraph/analysis.json, graph.json, CODEMAP.md
-  → imprime el resumen en la terminal
+  → discoverFiles(carpeta)                      [core/node]
+  → readGitHistory + readProjectConfig          [core/node]
+  → analyzeProject(archivos, { git, timeline, coupling, resolve })   [core]
+  → escribe .codegraph/{analysis.json, graph.json, CODEMAP.md}
+  → imprime el resumen
+
+codegraph serve ./mi-proyecto [--watch]
+  → lo mismo + servidor HTTP local:
+      GET /                → la web (packages/web/dist)
+      GET /api/analysis    → el JSON  (?fresh=1 re-analiza)
+      GET /api/events (SSE)→ "updated" cuando cambia un archivo
 ```
 
-`codegraph serve` además levanta un servidor local con el análisis en
-`/api/analysis` (y servirá la web cuando exista).
+### `@codegraph/mcp` — servidor MCP
 
-### `@codegraph/web` — la interfaz (Fase 2)
+Expone el análisis como **13 herramientas** del Model Context Protocol para que
+Claude Code / Claude Desktop consulten el grafo sin cargar el repo entero.
+Cachea el análisis hasta que se llame a `refresh`.
 
-Va a ser una SPA (React + Tailwind + un motor de grafo WebGL). En el navegador el
-usuario elige la carpeta con la File System Access API, el mismo `core` corre en
-un Web Worker, y se dibuja el grafo con capas conmutables.
+Ver [`06-servidor-mcp.md`](./06-servidor-mcp.md).
+
+### `@codegraph/web` — la interfaz
+
+SPA en **React + Vite + Tailwind + d3-force**. No analiza nada: le pide el JSON al
+CLI (`GET /api/analysis`) y lo dibuja. Si no hay servidor (deploy estático en
+Vercel), cae a un `demo-analysis.json` de ejemplo y lo marca como "modo demo".
+
+Ver [`05-la-interfaz.md`](./05-la-interfaz.md).
 
 ## Cómo se conectan
 
@@ -69,31 +93,40 @@ un Web Worker, y se dibuja el grafo con capas conmutables.
         ┌──────────────────┼──────────────────┐
         │                  │                  │
 ┌───────┴───────┐  ┌───────┴───────┐  ┌───────┴────────┐
-│ @codegraph/cli│  │ @codegraph/web│  │ @codegraph/mcp │  (Fase 3)
-│  (Node, disco)│  │ (navegador)   │  │ (Node, MCP)    │
-└───────────────┘  └───────────────┘  └────────────────┘
+│ @codegraph/cli│  │ @codegraph/mcp│  │ @codegraph/web │
+│ (Node, disco) │  │ (Node, MCP)   │  │  (navegador)   │
+└───────┬───────┘  └───────────────┘  └───────▲────────┘
+        │              sirve /api/analysis    │
+        └────────────────────────────────────-┘
 ```
 
-El `core` no sabe quién lo usa. Los demás paquetes le dan de comer archivos y
-consumen el resultado.
+El `core` no sabe quién lo usa. Los demás le dan de comer archivos y consumen el
+resultado. La web nunca importa `core` en runtime (solo tipos y `queries`), para
+no arrastrar `node:*` al bundle.
 
-## Herramientas
+## Tecnologías
 
 | Para qué | Herramienta |
 |---|---|
-| Lenguaje | TypeScript |
-| Parsing de código | tree-sitter (WebAssembly) |
-| Clustering del grafo | graphology + graphology-communities-louvain |
-| CLI | commander + picocolors |
+| Lenguaje | TypeScript (ESM, `moduleResolution: Bundler` en core) |
+| Parsing de código | tree-sitter vía `web-tree-sitter` + `tree-sitter-wasms` (WASM) |
+| Clustering del grafo | `graphology` + `graphology-communities-louvain` |
+| CLI | `commander` + `picocolors` |
+| Web | React 18 · Vite · Tailwind · `d3-force` / `d3-zoom` / `d3-drag` |
+| MCP | `@modelcontextprotocol/sdk` + `zod` |
 | Tests | Vitest |
-| Build | `tsc` (por ahora; la web usará Vite) |
+| Build | `tsc` (core/cli/mcp) · Vite (web) |
+| CI | GitHub Actions (build → typecheck → test → analiza el propio repo → handshake MCP) |
+| Deploy | Vercel (estático: la web en modo demo) |
 
 ## Scripts globales (desde la raíz)
 
-| Comando | Qué hace |
-|---|---|
-| `npm install` | Instala todo el monorepo |
-| `npm run build` | Compila `core` y después `cli` |
-| `npm test` | Corre los tests de todos los paquetes |
-| `npm run typecheck` | Chequeo de tipos de todos los paquetes |
-| `npm run analyze -- <carpeta>` | Atajo para `codegraph analyze` |
+Ver la tabla completa en el [README](../README.md#scripts). Los principales:
+`npm run build`, `npm test`, `npm run typecheck`, `npm run analyze -- <carpeta>`,
+`npm run serve -- <carpeta> [--watch]`.
+
+## El contrato de datos
+
+Todo pasa por los tipos de `packages/core/src/model.ts`. Si cambia algo ahí,
+cambia la forma de los datos en todos los paquetes. Los principales:
+`SourceFile` → `ParsedFile` → `KnowledgeGraph` + `ProjectSummary` = `ProjectAnalysis`.

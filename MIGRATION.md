@@ -1,19 +1,19 @@
 # Migración v2 → v3
 
 Este documento explica qué cambió al pasar de la web-only con parsing por regex
-(v2) al monorepo con motor tree-sitter (v3). Es una migración **en curso**: la
-Fase 1 está hecha, la interfaz web se migra en la Fase 2.
+(v2) al monorepo con motor tree-sitter (v3). La migración está **hecha**: la web
+vieja se borró y todo corre sobre el motor nuevo.
 
-## Qué se hizo (Fases 1–3)
+## Qué se hizo
 
 - El repo pasó a ser un **monorepo con npm workspaces**.
-- **`packages/core`**: motor de análisis reescrito con tree-sitter (AST real).
-  Expone además `@codegraph/core/node` (utilidades de disco) y
-  `core/src/queries.ts` (consultas puras sobre el grafo).
+- **`packages/core`**: motor de análisis reescrito con tree-sitter (AST real,
+  5 lenguajes). Expone además `@codegraph/core/node` (utilidades de disco) y
+  `@codegraph/core/queries` (consultas puras sobre el grafo).
 - **`packages/cli`**: el comando `codegraph` (`analyze`, `serve`).
-- **`packages/web`**: la interfaz nueva (React + d3-force).
-- **`packages/mcp`**: servidor MCP para Claude Code.
-- **documentación** en `docs/` (6 documentos).
+- **`packages/web`**: la interfaz nueva (React + Vite + d3-force).
+- **`packages/mcp`**: servidor MCP para Claude Code (13 herramientas).
+- **documentación** en `docs/` (9 documentos) + capa git (hotspots, acoplamiento, timeline).
 
 ## Qué se movió / reemplazó
 
@@ -46,8 +46,8 @@ todo lo que dependía de ella:
   `ELITE_ROADMAP.md`, `API.md`, `PLUGIN_DEVELOPMENT.md` — docs de la v2,
   reemplazados por `docs/`.
 
-Queda en pie: `landing/` (Astro, intacta), `CONTRIBUTING.md`, `SECURITY.md`
-(se actualizan más adelante).
+Queda en pie de la v2, pendiente de limpieza: `landing/` (scaffold Astro sin
+uso), `SECURITY.md` (describe la v2 browser-only, ya no aplica).
 
 ## Cómo levantar todo desde cero
 

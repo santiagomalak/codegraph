@@ -33,22 +33,56 @@ motor sirve a un CLI, a una web y a un servidor MCP.
 
 | Fase | Qué entrega | Estado |
 |---|---|---|
-| **1 · Fundación** | Monorepo + motor real con tree-sitter + CLI + grafo multicapa + CODEMAP | ✅ en curso |
-| **2 · Interfaz** | Web nueva (`packages/web`): grafo WebGL, capas conmutables, inspector, búsqueda | 🚧 siguiente |
-| **3 · IA** | Servidor MCP para Claude Code + chat con el proyecto + "explicá este nodo" | 🔜 |
-| **4 · Producto** | Extensión VS Code + landing + docs + publicar en npm | 🔜 |
-| **5 · Contexto extra** | Capa git (churn, hotspots, evolución en el tiempo), anotaciones | 🔜 |
+| **1 · Fundación** | Monorepo + motor real con tree-sitter (5 lenguajes) + CLI + grafo multicapa + CODEMAP | ✅ hecho |
+| **2 · Interfaz** | Web (`packages/web`): grafo d3-force, capas conmutables, inspector, búsqueda, timeline | ✅ hecho |
+| **3 · IA** | Servidor MCP para Claude Code (13 herramientas) + CODEMAP con niveles | ✅ hecho · falta el chat en la UI |
+| **4 · Capa git** | Hotspots + acoplamiento oculto + timeline | ✅ hecho · falta snapshots reales |
+| **5 · Escala y producto** | Render canvas/WebGL · extensión VS Code · publicar en npm · panel de IA en la web | 🚧 en curso |
 
 ### Decisiones ya tomadas
 
-- **Se evoluciona este repo** (no uno nuevo). El motor viejo se reescribió; la
-  web vieja se migra en la Fase 2.
+- **Se evoluciona este repo** (no uno nuevo). El motor viejo se reescribió, la
+  web vieja se borró.
 - **Monorepo con npm workspaces** — no hace falta instalar pnpm ni aprender nada nuevo.
 - **Lenguajes:** Python, JavaScript/TypeScript, Go, Rust y Java. Sumar más es
   agregar una gramática tree-sitter + una entrada en `language-specs.ts`, sin
   tocar la arquitectura.
-- **Integración IA:** las dos vías — servidor MCP *y* chat dentro de la app.
+- **Integración IA:** las dos vías — servidor MCP *y* (pendiente) chat dentro de la app.
 - **Objetivo:** open source / producto.
+
+## Extensión de VS Code
+
+La forma más directa de meter el grafo donde ya se programa, sin construir un
+editor. El motor (`@codegraph/core`) ya corre en Node; la extensión sería una
+capa fina encima:
+
+| Función | Cómo |
+|---|---|
+| **Panel del grafo** | Webview lateral que reusa `packages/web` apuntando a un análisis en memoria |
+| **"Explicá este archivo / dominio"** | Botón que arma el contexto (`describe_file` + vecinos) y se lo pasa a Claude vía el MCP ya existente |
+| **Marcas de hotspot** | Decoraciones en el gutter (color según el score) + hover con churn/complejidad |
+| **Saltar a dependencia** | Code lens "importado por N archivos" → lista para navegar |
+| **Aviso de acoplamiento** | Al abrir un archivo, "suele cambiar junto con: …" en la status bar |
+| **Re-análisis** | Al guardar (con debounce), incremental cuando esté listo |
+
+Encaja en la Fase 5. No requiere cambios en el motor.
+
+## ¿Un editor de código propio / app de escritorio?
+
+Idea sobre la mesa. Lectura honesta:
+
+- **Construir un editor** (competir con VS Code en edición) es un pozo sin fondo y
+  saca el foco de lo que hace único a este proyecto: el grafo.
+- **La extensión de VS Code** da "el grafo donde ya programás" gratis. Es el
+  camino con mejor relación esfuerzo/valor.
+- **Una app de escritorio** (Tauri/Electron envolviendo `packages/web` + el motor
+  local) tiene sentido **solo** si el valor es *navegar el proyecto por el grafo*
+  —abrir archivos desde el mapa, no desde el árbol— más que editar. Sería un
+  "explorador de proyectos" visual, no un IDE. Candidata a un experimento
+  post-Fase 5, no antes.
+
+En orden de prioridad: **extensión de VS Code** → (opcional) explorador de
+escritorio. Editor propio: no.
 
 ## El grafo multicapa (hacia dónde crece)
 
