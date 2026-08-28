@@ -165,6 +165,7 @@ export function buildSummary(
   files: ParsedFile[],
   graph: KnowledgeGraph,
   projectName: string,
+  temporalCoupling: ProjectSummary['temporalCoupling'] = [],
 ): ProjectSummary {
   const totalLoc = files.reduce((s, f) => s + f.metrics.loc, 0);
   const totalSymbols = files.reduce((s, f) => s + f.symbols.length, 0);
@@ -208,5 +209,6 @@ export function buildSummary(
     stack: detectStack(files),
     health: computeHealth(files, graph, avgComplexity, issuesBySeverity.error),
     hotspots: computeHotspots(files, graph),
+    temporalCoupling,
   };
 }

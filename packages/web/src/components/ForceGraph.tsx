@@ -180,6 +180,7 @@ export function ForceGraph({
     // volar lejos, pero suave para no colapsar el grafo conectado.
     const degree = new Map<string, number>();
     for (const l of links) {
+      if (l.kind === 'cochange') continue;
       const s = typeof l.source === 'string' ? l.source : (l.source as VizNode).id;
       const t = typeof l.target === 'string' ? l.target : (l.target as VizNode).id;
       degree.set(s, (degree.get(s) ?? 0) + 1);
@@ -193,7 +194,11 @@ export function ForceGraph({
         forceLink<VizNode, VizLink>(links)
           .id((d) => d.id)
           .distance(symbolMode ? 55 : 85)
-          .strength(symbolMode ? 0.5 : 0.4),
+          // Las aristas de acoplamiento casi no tiran (son una capa informativa,
+          // no queremos que deformen el layout de imports).
+          .strength((l) =>
+            (l as VizLink).kind === 'cochange' ? 0.03 : symbolMode ? 0.5 : 0.4,
+          ),
       )
       .force('charge', forceManyBody().strength(symbolMode ? -170 : -260).distanceMax(600))
       .force('collide', forceCollide<VizNode>((d) => nodeRadius(d) + (symbolMode ? 4 : 8)))
@@ -414,6 +419,19 @@ export function ForceGraph({
               const hot = focusId != null && (s.id === focusId || t.id === focusId);
               const [cx, cy] = controlPoint(s, t);
               const d = `M${s.x},${s.y} Q${cx},${cy} ${t.x},${t.y}`;
+              if (l.kind === 'cochange') {
+                // Acoplamiento temporal: punteado. Ámbar si es "oculto" (no se importan).
+                return (
+                  <path
+                    key={i}
+                    d={d}
+                    stroke={l.hidden ? '#f59e0b' : '#64748b'}
+                    strokeWidth={l.hidden ? 1.6 : 1}
+                    strokeDasharray="2 4"
+                    opacity={dim ? 0.05 : l.hidden ? 0.7 : 0.35}
+                  />
+                );
+              }
               return (
                 <path
                   key={i}

@@ -179,6 +179,21 @@ export interface GitTimeline {
   fileActivity: Record<string, number[]>;
 }
 
+/**
+ * Dos archivos que se modifican juntos en git una y otra vez ("acoplamiento
+ * temporal"). Si además NO se importan entre sí, es acoplamiento *oculto*:
+ * dependen uno del otro pero el código no lo dice.
+ */
+export interface CouplingPair {
+  /** Los dos paths, ordenados alfabéticamente (a < b). */
+  a: string;
+  b: string;
+  /** En cuántos commits aparecieron los dos juntos. */
+  shared: number;
+  /** shared / min(commits(a), commits(b)) — 0..1. Alto = van siempre de la mano. */
+  coupling: number;
+}
+
 /** El resultado de parsear UN archivo. */
 export interface ParsedFile {
   path: string;
@@ -215,8 +230,9 @@ export type NodeType = 'file' | 'symbol' | 'domain' | 'external';
  *  - imports:   file → file     (o file → external)
  *  - calls:     symbol → symbol (una función llama a otra)
  *  - member-of: file → domain   (el archivo pertenece a ese dominio)
+ *  - co-change: file → file     (se modifican juntos en git; ver CouplingPair)
  */
-export type EdgeType = 'contains' | 'imports' | 'calls' | 'member-of';
+export type EdgeType = 'contains' | 'imports' | 'calls' | 'member-of' | 'co-change';
 
 export interface GraphNode {
   id: string;
@@ -259,6 +275,13 @@ export interface GraphEdge {
   type: EdgeType;
   /** `true` si esta arista `imports` forma parte de un ciclo de dependencias. */
   circular?: boolean;
+  /** Fuerza 0..1 de la arista. Hoy solo lo usan las `co-change` (acoplamiento). */
+  weight?: number;
+  /**
+   * Solo en aristas `co-change`: `true` si los dos archivos NO se importan entre
+   * sí → acoplamiento oculto (el caso interesante).
+   */
+  hidden?: boolean;
 }
 
 /** Un "área" del proyecto detectada automáticamente por clustering. */
@@ -316,6 +339,11 @@ export interface ProjectSummary {
     complexity: number;
     commits: number;
   }>;
+  /**
+   * Pares de archivos que se modifican juntos en git pero NO se importan
+   * (acoplamiento oculto), ordenados por fuerza. Vacío si no hubo historial.
+   */
+  temporalCoupling: Array<{ a: string; b: string; shared: number; coupling: number }>;
 }
 
 // ────────────────────────────────────────────────────────────────────────────
@@ -352,6 +380,11 @@ export interface AnalyzeOptions {
   git?: Record<string, GitStats>;
   /** Datos del timeline (los devuelve `readGitHistory` junto con `git`). */
   timeline?: GitTimeline;
+  /**
+   * Pares de archivos acoplados en el tiempo (los devuelve `readGitHistory`).
+   * El análisis marca cuáles ya se importan y agrega aristas `co-change`.
+   */
+  coupling?: CouplingPair[];
   /**
    * Cómo resolver imports que no son rutas relativas (alias de tsconfig,
    * paquetes de un monorepo, módulo de go.mod). La arma `readProjectConfig`

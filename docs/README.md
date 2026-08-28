@@ -44,17 +44,24 @@ Ver también:
 - Fallback a demo cuando no hay servidor (deploy estático).
 
 ✅ **Fase 3 — IA**
-- `packages/mcp`: servidor MCP con 12 herramientas (`overview`, `describe_file`,
-  `impact_of`, `find_symbol`, `hotspots`…) para que Claude consulte el grafo sin cargarlo.
+- `packages/mcp`: servidor MCP con 13 herramientas (`overview`, `describe_file`,
+  `impact_of`, `find_symbol`, `hotspots`, `temporal_coupling`…) para que Claude
+  consulte el grafo sin cargarlo.
 - CODEMAP con niveles (`compact`/`normal`/`full`) y presupuesto de tokens.
 - `graph.json` slim por defecto (−72% de tamaño).
 - Funciones de consulta puras en `core/src/queries.ts`.
 
 ✅ **Capa git**
 - Lee el historial y calcula **hotspots** (complejo + cambia mucho) por archivo.
-- Se ve en el CLI, el CODEMAP, la web (glow naranja + lista clicable) y el MCP.
+- **Acoplamiento oculto**: pares que cambian juntos en git pero no se importan.
+- Se ve en el CLI, el CODEMAP, la web (glow naranja, líneas punteadas) y el MCP.
 - **Timeline**: barra con el histograma de actividad + playhead; los archivos
   aparecen a medida que se crearon y pulsan cuando se los tocó en ese tramo.
+
+✅ **Motor potente**
+- **5 lenguajes**: Python, JS/TS, Go, Rust, Java.
+- **Imports precisos**: alias de tsconfig, `baseUrl`, monorepos, re-exports,
+  módulos de Go (go.mod) / Rust (`crate::`, `mod`) / Java (nombre completo).
 
 🚧 **Sigue**
 - Timeline con **snapshots reales** (métricas de cada época, no las actuales).

@@ -73,6 +73,15 @@ function printSummary(analysis: ProjectAnalysis): void {
     }
   }
 
+  if (s.temporalCoupling.length > 0) {
+    console.log(pc.dim('\n  Acoplamiento oculto (cambian juntos, no se importan):'));
+    for (const c of s.temporalCoupling.slice(0, 5)) {
+      console.log(
+        pc.dim(`    ${String(Math.round(c.coupling * 100)).padStart(3)}%  ${c.a}  ↔  ${c.b}`),
+      );
+    }
+  }
+
   if (s.health.factors.length) {
     console.log(pc.dim('\n  Qué le baja la nota:'));
     for (const f of s.health.factors) {
@@ -98,7 +107,7 @@ export async function runAnalyze(target: string, flags: AnalyzeFlags): Promise<v
     process.exit(1);
   }
 
-  const { stats: git, timeline } = await readGitHistory(rootDir, files.map((f) => f.path));
+  const { stats: git, timeline, coupling } = await readGitHistory(rootDir, files.map((f) => f.path));
   const hasGit = Object.keys(git).length > 0;
   const resolveConfig = await readProjectConfig(rootDir);
 
@@ -107,6 +116,7 @@ export async function runAnalyze(target: string, flags: AnalyzeFlags): Promise<v
     projectName,
     git: hasGit ? git : undefined,
     timeline: timeline ?? undefined,
+    coupling,
     resolve: resolveConfig,
     onProgress: (done, total) => {
       const pct = Math.floor((done / total) * 100);

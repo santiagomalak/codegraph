@@ -20,7 +20,7 @@ import { isIgnored, languageOf } from './languages.js';
 import { parseFile } from './parsing/index.js';
 import { buildGraph } from './graph/build-graph.js';
 import { buildSummary } from './metrics/summary.js';
-import { applyGitToGraph, attachGitStats } from './git.js';
+import { applyCouplingToGraph, applyGitToGraph, attachGitStats } from './git.js';
 
 /** Pasa todos los separadores a "/" y saca "./" del principio. */
 function normalizePath(path: string): string {
@@ -52,8 +52,11 @@ export async function analyzeProject(
 
   const graph = buildGraph(files, options.resolve);
   if (options.git) applyGitToGraph(graph, files);
+  const temporalCoupling = options.coupling
+    ? applyCouplingToGraph(graph, options.coupling)
+    : [];
 
-  const summary = buildSummary(files, graph, projectName);
+  const summary = buildSummary(files, graph, projectName, temporalCoupling);
 
   return {
     projectName,

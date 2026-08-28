@@ -24,7 +24,7 @@ export class Project {
         if (files.length === 0) {
           throw new Error(`No hay archivos de código soportados en ${this.rootDir}`);
         }
-        const { stats: git, timeline } = await readGitHistory(
+        const { stats: git, timeline, coupling } = await readGitHistory(
           this.rootDir,
           files.map((f) => f.path),
         );
@@ -32,6 +32,7 @@ export class Project {
           projectName: basename(this.rootDir),
           git: Object.keys(git).length > 0 ? git : undefined,
           timeline: timeline ?? undefined,
+          coupling,
           resolve: await readProjectConfig(this.rootDir),
         });
         this.analysis = result;

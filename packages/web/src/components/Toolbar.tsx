@@ -14,6 +14,9 @@ interface Props {
   setGroupByDomain: (v: boolean) => void;
   showExternal: boolean;
   setShowExternal: (v: boolean) => void;
+  hasCoupling: boolean;
+  showCoupling: boolean;
+  setShowCoupling: (v: boolean) => void;
   domainFilter: string | null;
   clearDomainFilter: () => void;
   domainLabel: string | null;
@@ -111,6 +114,17 @@ export function Toolbar(props: Props) {
         <Toggle checked={props.showExternal} onChange={props.setShowExternal} disabled={!filesMode}>
           Paquetes externos
         </Toggle>
+        {props.hasCoupling && (
+          <Toggle
+            checked={props.showCoupling}
+            onChange={props.setShowCoupling}
+            disabled={!filesMode}
+          >
+            <span title="Archivos que cambian juntos en git aunque no se importen">
+              🔗 Acoplamiento
+            </span>
+          </Toggle>
+        )}
       </div>
 
       <div className="ml-auto flex items-center gap-3 text-xs text-slate-500">

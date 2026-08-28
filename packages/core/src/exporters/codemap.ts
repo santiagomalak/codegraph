@@ -108,6 +108,20 @@ export function toCodemapMarkdown(analysis: ProjectAnalysis, opts: CodemapOption
     add(3, 'compact', lines.join('\n'));
   }
 
+  // ── 2.6 Acoplamiento oculto (git) ─────────────────────────────────────
+  if (summary.temporalCoupling.length > 0) {
+    const lines = [
+      '## 🔗 Acoplamiento oculto (cambian juntos pero no se importan)',
+      '',
+      '| Archivo A | Archivo B | Juntos | Fuerza |',
+      '|---|---|--:|--:|',
+      ...summary.temporalCoupling
+        .slice(0, detail === 'compact' ? 4 : 12)
+        .map((c) => `| \`${c.a}\` | \`${c.b}\` | ${c.shared} | ${Math.round(c.coupling * 100)}% |`),
+    ];
+    add(3, 'normal', lines.join('\n'));
+  }
+
   // ── 3. Puntos de entrada ───────────────────────────────────────────────
   if (summary.entryPoints.length > 0) {
     add(

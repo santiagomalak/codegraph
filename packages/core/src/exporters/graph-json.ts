@@ -39,12 +39,14 @@ export function toGraphJson(graph: KnowledgeGraph, opts: GraphJsonOptions = {}):
         };
       }),
     edges: graph.edges
-      .filter((e) => e.type === 'imports' || e.type === 'member-of')
+      .filter((e) => e.type === 'imports' || e.type === 'member-of' || e.type === 'co-change')
       .map((e) => ({
         from: e.source,
         to: e.target,
         type: e.type,
         ...(e.circular ? { circular: true } : {}),
+        ...(e.weight !== undefined ? { weight: e.weight } : {}),
+        ...(e.hidden ? { hidden: true } : {}),
       })),
     domains: graph.domains,
     cycles: graph.cycles,

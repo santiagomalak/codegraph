@@ -11,7 +11,13 @@ import { spawn } from 'node:child_process';
 import { readdir, readFile, stat } from 'node:fs/promises';
 import { dirname, join, relative, sep } from 'node:path';
 import { EXTENSION_LANGUAGE, IGNORE_DIRS } from './languages.js';
-import type { GitStats, GitTimeline, ResolverConfig, WorkspacePackage } from './model.js';
+import type {
+  CouplingPair,
+  GitStats,
+  GitTimeline,
+  ResolverConfig,
+  WorkspacePackage,
+} from './model.js';
 
 const MAX_FILE_BYTES = 1_500_000;
 const KNOWN_EXTENSIONS = new Set(Object.keys(EXTENSION_LANGUAGE));
@@ -112,9 +118,25 @@ function runGit(rootDir: string, args: string[]): Promise<string | null> {
 /** Cantidad de tramos del timeline. */
 const TIMELINE_BUCKETS = 48;
 
+/** Acoplamiento temporal: umbrales para no ahogarse en ruido. */
+const COUPLING = {
+  /** Commits que tocan más archivos que esto se ignoran (renames masivos, formateos). */
+  maxCommitFiles: 25,
+  /** Mínimo de commits compartidos para siquiera considerar el par. */
+  minShared: 3,
+  /** Cada archivo del par tiene que haber cambiado al menos esto. */
+  minCommits: 5,
+  /** Fuerza mínima (shared / min(commits)) para reportar el par. */
+  minScore: 0.4,
+  /** Cuántos pares devolver como máximo. */
+  top: 40,
+};
+
 export interface GitHistoryResult {
   stats: Record<string, GitStats>;
   timeline: GitTimeline | null;
+  /** Pares de archivos que se modifican juntos (acoplamiento temporal). */
+  coupling: CouplingPair[];
 }
 
 /**
@@ -130,7 +152,7 @@ export async function readGitHistory(
   // git muestra los paths relativos a la RAÍZ del repo. Si `rootDir` es una
   // subcarpeta, hay que sacarle ese prefijo a cada path.
   const prefixRaw = await runGit(rootDir, ['rev-parse', '--show-prefix']);
-  if (prefixRaw === null) return { stats: {}, timeline: null };
+  if (prefixRaw === null) return { stats: {}, timeline: null, coupling: [] };
   const prefix = prefixRaw.trim();
 
   const RS = '\x1e';
@@ -143,7 +165,7 @@ export async function readGitHistory(
     `-n${MAX_COMMITS}`,
     `--format=${RS}%H${US}%an${US}%aI`,
   ]);
-  if (!raw) return { stats: {}, timeline: null };
+  if (!raw) return { stats: {}, timeline: null, coupling: [] };
 
   interface Acc {
     commits: number;
@@ -156,12 +178,28 @@ export async function readGitHistory(
   const commitTimes: number[] = []; // uno por commit
   const fileTimes = new Map<string, number[]>(); // path → timestamps que lo tocaron
 
+  // Acoplamiento temporal: archivos del commit en curso + cuenta de co-ocurrencias.
+  let commitFiles: string[] = [];
+  const coChange = new Map<string, number>(); // "a\x1fb" (a<b) → nº de commits juntos
+  const bump = (): void => {
+    if (commitFiles.length < 2 || commitFiles.length > COUPLING.maxCommitFiles) return;
+    const sorted = [...new Set(commitFiles)].sort();
+    for (let i = 0; i < sorted.length; i++) {
+      for (let j = i + 1; j < sorted.length; j++) {
+        const key = `${sorted[i]}${US}${sorted[j]}`;
+        coChange.set(key, (coChange.get(key) ?? 0) + 1);
+      }
+    }
+  };
+
   let author = '';
   let date = '';
   let ts = 0;
 
   for (const line of raw.split('\n')) {
     if (line.startsWith(RS)) {
+      bump(); // cerrar el commit anterior
+      commitFiles = [];
       const parts = line.slice(1).split(US);
       author = parts[1] ?? '';
       date = parts[2] ?? '';
@@ -196,7 +234,10 @@ export async function readGitHistory(
     let times = fileTimes.get(path);
     if (!times) fileTimes.set(path, (times = []));
     times.push(ts);
+
+    commitFiles.push(path);
   }
+  bump(); // último commit
 
   const stats: Record<string, GitStats> = {};
   for (const [path, e] of acc) {
@@ -209,7 +250,32 @@ export async function readGitHistory(
     };
   }
 
-  return { stats, timeline: buildTimeline(commitTimes, fileTimes) };
+  return {
+    stats,
+    timeline: buildTimeline(commitTimes, fileTimes),
+    coupling: buildCoupling(coChange, acc, US),
+  };
+}
+
+/** Convierte las co-ocurrencias en pares con puntaje, filtrados y ordenados. */
+function buildCoupling(
+  coChange: Map<string, number>,
+  acc: Map<string, { commits: number }>,
+  sep: string,
+): CouplingPair[] {
+  const pairs: CouplingPair[] = [];
+  for (const [key, shared] of coChange) {
+    if (shared < COUPLING.minShared) continue;
+    const [a, b] = key.split(sep) as [string, string];
+    const ca = acc.get(a)?.commits ?? 0;
+    const cb = acc.get(b)?.commits ?? 0;
+    if (ca < COUPLING.minCommits || cb < COUPLING.minCommits) continue;
+    const coupling = shared / Math.min(ca, cb);
+    if (coupling < COUPLING.minScore) continue;
+    pairs.push({ a, b, shared, coupling: Math.round(coupling * 100) / 100 });
+  }
+  pairs.sort((x, y) => y.coupling - x.coupling || y.shared - x.shared);
+  return pairs.slice(0, COUPLING.top);
 }
 
 /** Divide la historia en `TIMELINE_BUCKETS` tramos iguales por fecha. */

@@ -29,6 +29,7 @@ export function App() {
   const [mode, setMode] = useState<VizMode>('files');
   const [groupByDomain, setGroupByDomain] = useState(false);
   const [showExternal, setShowExternal] = useState(false);
+  const [showCoupling, setShowCoupling] = useState(false);
   const [domainFilter, setDomainFilter] = useState<string | null>(null);
   const [paletteOpen, setPaletteOpen] = useState(false);
   const [toast, setToast] = useState<string | null>(null);
@@ -85,12 +86,14 @@ export function App() {
     return () => window.removeEventListener('keydown', onKey);
   }, []);
 
+  const hasCoupling = (analysis?.summary.temporalCoupling.length ?? 0) > 0;
+
   const viz = useMemo(
     () =>
       analysis
-        ? buildVizGraph(analysis, { mode, showExternal, domainFilter })
+        ? buildVizGraph(analysis, { mode, showExternal, domainFilter, showCoupling })
         : null,
-    [analysis, mode, showExternal, domainFilter],
+    [analysis, mode, showExternal, domainFilter, showCoupling],
   );
 
   const domainLabel =
@@ -162,6 +165,9 @@ export function App() {
         setGroupByDomain={setGroupByDomain}
         showExternal={showExternal}
         setShowExternal={setShowExternal}
+        hasCoupling={hasCoupling}
+        showCoupling={showCoupling}
+        setShowCoupling={setShowCoupling}
         domainFilter={domainFilter}
         clearDomainFilter={() => setDomainFilter(null)}
         domainLabel={domainLabel}

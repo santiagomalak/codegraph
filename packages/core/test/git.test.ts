@@ -54,6 +54,31 @@ describe('capa git', () => {
     expect(r.summary.hotspots[0]!.commits).toBe(40);
   });
 
+  it('marca acoplamiento oculto y agrega aristas co-change', async () => {
+    const r = await analyzeProject(files, {
+      projectName: 'x',
+      coupling: [
+        // hot.ts y calm.ts cambian juntos pero NO se importan → oculto
+        { a: 'src/calm.ts', b: 'src/hot.ts', shared: 7, coupling: 0.8 },
+        // par que no existe en el grafo → se ignora
+        { a: 'src/ghost.ts', b: 'src/hot.ts', shared: 5, coupling: 0.5 },
+      ],
+    });
+
+    const coEdge = r.graph.edges.find((e) => e.type === 'co-change');
+    expect(coEdge).toMatchObject({ source: 'src/calm.ts', target: 'src/hot.ts', hidden: true, weight: 0.8 });
+    expect(r.graph.edges.some((e) => e.type === 'co-change' && e.source === 'src/ghost.ts')).toBe(false);
+
+    expect(r.summary.temporalCoupling).toEqual([
+      { a: 'src/calm.ts', b: 'src/hot.ts', shared: 7, coupling: 0.8 },
+    ]);
+  });
+
+  it('sin coupling, temporalCoupling es []', async () => {
+    const r = await analyzeProject(files, { projectName: 'x' });
+    expect(r.summary.temporalCoupling).toEqual([]);
+  });
+
   it('pasa el timeline al resultado', async () => {
     const timeline = {
       from: '2024-01-01T00:00:00Z',

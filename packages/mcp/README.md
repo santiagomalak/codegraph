@@ -54,6 +54,7 @@ hasta que llame a `refresh`.
 | `impact_of` | Todo lo que se rompe si tocás un archivo (transitivo) |
 | `find_symbol` | Dónde se define una función/clase y quién la llama |
 | `hotspots` | Archivos complejos que además cambian mucho (según git) |
+| `temporal_coupling` | Pares de archivos que cambian juntos pero no se importan (acoplamiento oculto) |
 | `circular_dependencies` | Los ciclos de imports |
 | `search` | Archivos cuya ruta contiene un texto |
 | `refresh` | Vuelve a analizar la carpeta |

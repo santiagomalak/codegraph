@@ -58,6 +58,8 @@ dominio → aísla ese dominio en el grafo (click de nuevo para quitar el filtro
 - **Agrupar por dominio** — separa las áreas en la pantalla y dibuja un "blob"
   detrás de cada una.
 - **Paquetes externos** — agrega nodos para `react`, `os`, etc.
+- **🔗 Acoplamiento** — (si hay historial de git) dibuja líneas punteadas entre
+  archivos que se modifican juntos. Ámbar = "oculto" (no se importan entre sí).
 - **⏱ Timeline** — (si la carpeta es un repo git) abre una barra abajo con el
   histograma de commits y un playhead. Al moverlo, el grafo muestra el proyecto
   como estaba en esa fecha: los archivos aparecen a medida que se crearon y los

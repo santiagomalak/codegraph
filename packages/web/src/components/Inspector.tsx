@@ -77,6 +77,9 @@ function FileView({
   const file = analysis.files.find((f) => f.path === path);
   const domain = analysis.graph.domains.find((d) => d.id === node.domain);
   const dependents = dependentsOf(analysis, path);
+  const coupledWith = analysis.summary.temporalCoupling
+    .filter((c) => c.a === path || c.b === path)
+    .map((c) => ({ other: c.a === path ? c.b : c.a, coupling: c.coupling, shared: c.shared }));
 
   return (
     <Shell title={node.label} subtitle={path} onClose={onClose}>
@@ -147,6 +150,24 @@ function FileView({
               </Row>
             ))}
           </Section>
+
+          {coupledWith.length > 0 && (
+            <Section title={`Cambia junto con (${coupledWith.length})`}>
+              <div className="pb-1 text-[11px] text-slate-500">
+                En git se modifican a la vez, pero no se importan.
+              </div>
+              {coupledWith.map((c) => (
+                <Row
+                  key={c.other}
+                  onClick={() => onNavigate(c.other)}
+                  badge={`${Math.round(c.coupling * 100)}%`}
+                  badgeClass="bg-amber-500/15 text-amber-300"
+                >
+                  {c.other}
+                </Row>
+              ))}
+            </Section>
+          )}
 
           <Section title={`Símbolos (${file.symbols.length})`}>
             {file.symbols.length === 0 && <Empty>Sin funciones ni clases</Empty>}

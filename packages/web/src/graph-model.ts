@@ -45,8 +45,12 @@ export interface VizNode {
 export interface VizLink {
   source: string | VizNode;
   target: string | VizNode;
-  kind: 'import' | 'call';
+  kind: 'import' | 'call' | 'cochange';
   circular: boolean;
+  /** Solo en 'cochange': los dos archivos no se importan → acoplamiento oculto. */
+  hidden?: boolean;
+  /** Solo en 'cochange': fuerza del acoplamiento 0..1. */
+  weight?: number;
 }
 
 export interface VizDomain {
@@ -69,6 +73,8 @@ export interface BuildOptions {
   showExternal: boolean;
   /** Si se pasa, solo se muestran los nodos de ese dominio (id). */
   domainFilter?: string | null;
+  /** Dibujar las aristas de acoplamiento temporal (cambian juntos). */
+  showCoupling?: boolean;
 }
 
 const EXTERNAL_COLOR = '#4b5563';
@@ -191,6 +197,22 @@ export function buildVizGraph(analysis: ProjectAnalysis, opts: BuildOptions): Vi
   );
   const filtered = nodes.filter((n) => kept.has(n.id));
   links = links.filter((l) => kept.has(l.source as string) && kept.has(l.target as string));
+
+  // Acoplamiento temporal (cambian juntos en git): capa opcional.
+  if (opts.showCoupling) {
+    for (const e of analysis.graph.edges) {
+      if (e.type !== 'co-change') continue;
+      if (!kept.has(e.source) || !kept.has(e.target)) continue;
+      links.push({
+        source: e.source,
+        target: e.target,
+        kind: 'cochange',
+        circular: false,
+        hidden: Boolean(e.hidden),
+        weight: e.weight,
+      });
+    }
+  }
 
   return { mode: 'files', nodes: filtered, links, domains, timeline: analysis.timeline };
 }

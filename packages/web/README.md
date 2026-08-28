@@ -33,6 +33,8 @@ npm run dev:web                                 # terminal 2 (Vite :5173)
 - **Ctrl/Cmd + K**: buscador rápido.
 - **⏱ Timeline** (repos git): barra con el histograma de commits + playhead;
   los archivos aparecen a medida que se crearon y pulsan cuando se los tocó.
+- **🔗 Acoplamiento** (repos git): líneas punteadas entre archivos que cambian
+  juntos; ámbar = no se importan (acoplamiento oculto).
 - **Toolbar**: agrupar por dominio, mostrar externos, re-analizar, indicador "en vivo".
 - Zoom/pan, arrastre de nodos, auto-encuadre.
 

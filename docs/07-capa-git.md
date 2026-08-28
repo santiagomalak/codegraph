@@ -65,12 +65,41 @@ medida que se crearon y los que se tocaron en ese tramo **pulsan** (las "olas").
 > Se ve mejor en repos con historia repartida en el tiempo. Si casi todos los
 > commits son del mismo día, el timeline queda plano.
 
+## Acoplamiento temporal (acoplamiento oculto)
+
+Dos archivos que en git se modifican **juntos** una y otra vez tienen una
+dependencia real, aunque el código no la muestre. Si además **no se importan**
+entre sí, es acoplamiento *oculto*: el caso interesante (un cambio en A casi
+siempre necesita un cambio en B, pero nada te avisa).
+
+`readGitHistory` junta, por cada commit, el conjunto de archivos que tocó y
+cuenta las co-ocurrencias. Después:
+
+```
+fuerza(a, b) = commits_juntos(a, b) / min( commits(a), commits(b) )
+```
+
+Filtros para no ahogarse en ruido (`node-fs.ts`, constante `COUPLING`):
+- se ignoran commits que tocan más de **25 archivos** (formateos, renames masivos)
+- cada archivo del par cambió al menos **5 veces**
+- aparecieron juntos al menos **3 veces**
+- `fuerza ≥ 0.4`
+
+| Dónde | Qué muestra |
+|---|---|
+| `analysis.summary.temporalCoupling` | top 15 pares ocultos (no se importan) |
+| `graph.edges` tipo `co-change` | con `weight` y `hidden` (true = oculto) |
+| **CODEMAP.md** | sección `## 🔗 Acoplamiento oculto` |
+| **Web** | toggle "🔗 Acoplamiento" → líneas punteadas (ámbar = oculto) + "Cambia junto con" en el Inspector |
+| **MCP** | herramienta `temporal_coupling` |
+
+> Igual que los hotspots: en un repo joven, donde muchos commits tocan medio
+> proyecto a la vez, el acoplamiento sale ruidoso. Se afina con historia real.
+
 ## Qué falta / se podría sumar
 
 - **Snapshots reales** (enfoque "los dos"): re-analizar ~20 puntos de la historia
   con `git worktree` para tener las métricas reales de cada época.
 - **Autores por dominio** (quién conoce qué área)
 - **Edad del código** (archivos que nadie toca hace años)
-- **Coupling temporal**: archivos que siempre se modifican juntos aunque no se
-  importen (acoplamiento oculto)
 - `git blame` por símbolo

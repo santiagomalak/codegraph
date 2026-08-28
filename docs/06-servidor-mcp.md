@@ -43,12 +43,13 @@ Las más útiles:
   indirectamente) del que vas a tocar.
 - **`find_symbol`** — dónde está una función y quién la llama.
 - **`hotspots`** — archivos complejos que además cambian mucho (según git).
+- **`temporal_coupling`** — pares que cambian juntos pero no se importan (acoplamiento oculto).
 
 ## Cómo está hecho
 
 ```
 packages/mcp/src/
-├── index.ts     # define las 11 herramientas y arranca el servidor
+├── index.ts     # define las 13 herramientas y arranca el servidor
 └── project.ts   # carga y cachea el análisis de la carpeta
 ```
 

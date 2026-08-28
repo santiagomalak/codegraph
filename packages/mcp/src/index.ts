@@ -202,6 +202,27 @@ server.registerTool(
   },
 );
 
+// ── temporal_coupling ───────────────────────────────────────────────────────
+server.registerTool(
+  'temporal_coupling',
+  {
+    title: 'Acoplamiento oculto',
+    description:
+      'Pares de archivos que en git se modifican juntos una y otra vez pero NO se ' +
+      'importan entre sí. Señal de una dependencia que el código no muestra. ' +
+      'Vacío si no hay historial de git.',
+    inputSchema: {},
+  },
+  async () => {
+    const a = await project.get();
+    return text(
+      a.summary.temporalCoupling.length
+        ? a.summary.temporalCoupling
+        : 'Sin acoplamiento oculto detectado (o la carpeta no es un repo git).',
+    );
+  },
+);
+
 // ── circular_dependencies ───────────────────────────────────────────────────
 server.registerTool(
   'circular_dependencies',

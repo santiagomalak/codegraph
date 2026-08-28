@@ -11,7 +11,12 @@
  * están muy sesgados (unos pocos archivos acaparan la mayoría).
  */
 
-import type { KnowledgeGraph, ParsedFile, ProjectSummary } from './model.js';
+import type {
+  CouplingPair,
+  KnowledgeGraph,
+  ParsedFile,
+  ProjectSummary,
+} from './model.js';
 
 function clamp01(n: number): number {
   return Math.max(0, Math.min(1, n));
@@ -51,6 +56,44 @@ export function applyGitToGraph(graph: KnowledgeGraph, files: ParsedFile[]): voi
     const ch = churnNorm(file.git.commits, maxCommits);
     node.hotspot = Math.round(Math.sqrt(cx * ch) * 100) / 100;
   }
+}
+
+/**
+ * Agrega aristas `co-change` al grafo (acoplamiento temporal) y marca cuáles son
+ * "ocultas" (los dos archivos NO se importan entre sí). Devuelve los pares
+ * ocultos, ordenados, para el resumen.
+ */
+export function applyCouplingToGraph(
+  graph: KnowledgeGraph,
+  coupling: CouplingPair[],
+): ProjectSummary['temporalCoupling'] {
+  if (coupling.length === 0) return [];
+
+  const fileIds = new Set(graph.nodes.filter((n) => n.type === 'file').map((n) => n.id));
+  // Pares que ya están conectados por un import (en cualquier dirección).
+  const imported = new Set<string>();
+  for (const e of graph.edges) {
+    if (e.type !== 'imports') continue;
+    imported.add(e.source < e.target ? `${e.source}|${e.target}` : `${e.target}|${e.source}`);
+  }
+
+  const hidden: ProjectSummary['temporalCoupling'] = [];
+  for (const pair of coupling) {
+    if (!fileIds.has(pair.a) || !fileIds.has(pair.b)) continue;
+    const isImported = imported.has(`${pair.a}|${pair.b}`);
+    graph.edges.push({
+      id: `co-change:${pair.a}↔${pair.b}`,
+      source: pair.a,
+      target: pair.b,
+      type: 'co-change',
+      weight: pair.coupling,
+      hidden: !isImported,
+    });
+    if (!isImported) {
+      hidden.push({ a: pair.a, b: pair.b, shared: pair.shared, coupling: pair.coupling });
+    }
+  }
+  return hidden.slice(0, 15);
 }
 
 /** Top archivos hotspot para el resumen. */
