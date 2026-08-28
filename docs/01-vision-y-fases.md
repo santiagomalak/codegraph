@@ -36,7 +36,7 @@ motor sirve a un CLI, a una web y a un servidor MCP.
 | **1 · Fundación** | Monorepo + motor real con tree-sitter (5 lenguajes) + CLI + grafo multicapa + CODEMAP | ✅ hecho |
 | **2 · Interfaz** | Web (`packages/web`): grafo d3-force, capas conmutables, inspector, búsqueda, timeline | ✅ hecho |
 | **3 · IA** | Servidor MCP para Claude Code (13 herramientas) + CODEMAP con niveles | ✅ hecho · falta el chat en la UI |
-| **4 · Capa git** | Hotspots + acoplamiento oculto + timeline | ✅ hecho · falta snapshots reales |
+| **4 · Capa git** | Hotspots + acoplamiento oculto + timeline + snapshots históricos | ✅ hecho |
 | **5 · Escala y producto** | Render canvas/WebGL · extensión VS Code · publicar en npm · panel de IA en la web | 🚧 en curso |
 
 ### Decisiones ya tomadas

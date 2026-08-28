@@ -8,7 +8,7 @@
 
 import { useCallback, useEffect, useMemo, useRef, useState, type ReactNode } from 'react';
 import type { ProjectAnalysis } from '@codegraph/core';
-import { fetchAnalysis, watchForUpdates } from './api.js';
+import { fetchAnalysis, fetchSnapshots, watchForUpdates, type SnapshotsState } from './api.js';
 import { buildVizGraph, type VizMode, type VizNode } from './graph-model.js';
 import { Toolbar } from './components/Toolbar.js';
 import { Sidebar } from './components/Sidebar.js';
@@ -39,6 +39,7 @@ export function App() {
   const [timelineOpen, setTimelineOpen] = useState(false);
   const [timelineBucket, setTimelineBucket] = useState(0);
   const [playing, setPlaying] = useState(false);
+  const [snapshots, setSnapshots] = useState<SnapshotsState>({ status: 'idle' });
 
   const flash = useCallback((msg: string) => {
     setToast(msg);
@@ -73,6 +74,37 @@ export function App() {
       }),
     [load],
   );
+
+  // Snapshots históricos: al abrir el timeline pregunto el estado; si está
+  // calculando, hago polling hasta que termine.
+  useEffect(() => {
+    if (!timelineOpen) return;
+    let alive = true;
+    const tick = async () => {
+      const s = await fetchSnapshots(false);
+      if (!alive) return;
+      setSnapshots(s);
+      if (s.status === 'computing') setTimeout(tick, 2000);
+    };
+    tick();
+    return () => {
+      alive = false;
+    };
+  }, [timelineOpen]);
+
+  const computeSnapshots = useCallback(async () => {
+    setSnapshots({ status: 'computing', progress: { done: 0, total: 20 } });
+    const s = await fetchSnapshots(true);
+    setSnapshots(s);
+    if (s.status === 'computing') {
+      const poll = async () => {
+        const next = await fetchSnapshots(false);
+        setSnapshots(next);
+        if (next.status === 'computing') setTimeout(poll, 2000);
+      };
+      setTimeout(poll, 2000);
+    }
+  }, []);
 
   // Ctrl/Cmd + K
   useEffect(() => {
@@ -240,6 +272,8 @@ export function App() {
                 setTimelineOpen(false);
                 setPlaying(false);
               }}
+              snapshots={snapshots}
+              onComputeSnapshots={computeSnapshots}
             />
           )}
         </div>

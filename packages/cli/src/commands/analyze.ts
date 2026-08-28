@@ -17,8 +17,14 @@ import {
   toGraphJson,
   type CodemapDetail,
   type ProjectAnalysis,
+  type SnapshotSeries,
 } from '@codegraph/core';
-import { discoverFiles, readGitHistory, readProjectConfig } from '@codegraph/core/node';
+import {
+  buildSnapshots,
+  discoverFiles,
+  readGitHistory,
+  readProjectConfig,
+} from '@codegraph/core/node';
 
 export interface AnalyzeFlags {
   out?: string;
@@ -31,6 +37,7 @@ export interface AnalyzeFlags {
   failOnCycles?: boolean;
   failOnError?: boolean;
   maxComplexity?: string;
+  snapshots?: string | boolean;
 }
 
 const GRADE_COLOR: Record<string, (s: string) => string> = {
@@ -89,6 +96,34 @@ function printSummary(analysis: ProjectAnalysis): void {
     }
   }
   console.log('');
+}
+
+/** Tabla corta de la evolución del proyecto (primer vs último snapshot + tendencia). */
+function printEvolution(series: SnapshotSeries): void {
+  const pts = series.points;
+  const first = pts[0]!;
+  const last = pts[pts.length - 1]!;
+
+  console.log(pc.dim(`\n  Evolución (${pts.length} puntos, ${first.date.slice(0, 10)} → ${last.date.slice(0, 10)}):`));
+  const row = (label: string, a: number, b: number, better: 'up' | 'down') => {
+    const good = better === 'up' ? b >= a : b <= a;
+    const mark = b === a ? pc.dim('·') : good ? pc.green('✓') : pc.yellow('!');
+    console.log(pc.dim(`    ${label.padEnd(13)} ${String(a).padStart(7)} → ${String(b).padStart(7)}  ${mark}`));
+  };
+  row('Archivos', first.files, last.files, 'up');
+  row('Líneas', first.loc, last.loc, 'up');
+  row('Complejidad', first.avgComplexity, last.avgComplexity, 'down');
+  row('Health', first.health, last.health, 'up');
+  row('Ciclos', first.circularDeps, last.circularDeps, 'down');
+  // mini-sparkline del health
+  const spark = '▁▂▃▄▅▆▇█';
+  const hs = pts.map((p) => p.health);
+  const lo = Math.min(...hs);
+  const hi = Math.max(...hs);
+  const bars = hs
+    .map((h) => spark[Math.round(((h - lo) / Math.max(1, hi - lo)) * (spark.length - 1))])
+    .join('');
+  console.log(pc.dim(`    Health   ${bars}  (${lo}–${hi})`));
 }
 
 export async function runAnalyze(target: string, flags: AnalyzeFlags): Promise<void> {
@@ -163,6 +198,24 @@ export async function runAnalyze(target: string, flags: AnalyzeFlags): Promise<v
         toCodemapMarkdown(analysis, { detail, maxTokens }),
       );
       written.push('CODEMAP.md');
+    }
+
+    if (flags.snapshots !== undefined && flags.snapshots !== false) {
+      const n = flags.snapshots === true ? 20 : Number(flags.snapshots) || 20;
+      console.log(pc.dim(`\n  Calculando ${n} snapshots históricos (git worktree)…`));
+      const series = await buildSnapshots(rootDir, {
+        count: n,
+        onProgress: (done, total, sha) =>
+          progressOut.write(pc.dim(`\r    ${done}/${total}  ${sha}      `)),
+      });
+      progressOut.write('\r' + ' '.repeat(40) + '\r');
+      if (series) {
+        await writeFile(join(outDir, 'snapshots.json'), JSON.stringify(series));
+        written.push('snapshots.json');
+        printEvolution(series);
+      } else {
+        console.log(pc.dim('    (no se pudo: ¿la carpeta es un repo con 2+ commits?)'));
+      }
     }
 
     printSummary(analysis);

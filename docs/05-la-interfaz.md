@@ -64,6 +64,9 @@ dominio → aísla ese dominio en el grafo (click de nuevo para quitar el filtro
   histograma de commits y un playhead. Al moverlo, el grafo muestra el proyecto
   como estaba en esa fecha: los archivos aparecen a medida que se crearon y los
   que se tocaron en ese tramo **pulsan**. Play para animarlo, "Hoy" para volver.
+  El botón **📊 precisión histórica** dentro del Timeline calcula los *snapshots
+  reales* (re-analiza ~20 puntos de la historia) y muestra el health, la
+  complejidad y los dominios **reales** de la época del playhead.
 - **• en vivo** — aparece cuando `serve --watch` está conectado.
 - **↻ Re-analizar** — vuelve a correr el análisis.
 

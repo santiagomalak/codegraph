@@ -7,7 +7,7 @@
  *   y marca el resultado como demo.
  */
 
-import type { ProjectAnalysis } from '@codegraph/core';
+import type { ProjectAnalysis, SnapshotSeries } from '@codegraph/core';
 
 export interface LoadResult {
   analysis: ProjectAnalysis;
@@ -24,6 +24,23 @@ export async function fetchAnalysis(fresh = false): Promise<LoadResult> {
   const demo = await fetch('/demo-analysis.json');
   if (!demo.ok) throw new Error('No hay servidor (`codegraph serve`) ni demo disponible.');
   return { analysis: (await demo.json()) as ProjectAnalysis, isDemo: true };
+}
+
+export type SnapshotsState =
+  | { status: 'ready'; series: SnapshotSeries }
+  | { status: 'computing'; progress: { done: number; total: number } }
+  | { status: 'idle' }
+  | { status: 'unavailable' }; // no hay server (deploy estático)
+
+/** Estado de los snapshots históricos. `compute: true` arranca el cálculo. */
+export async function fetchSnapshots(compute = false): Promise<SnapshotsState> {
+  try {
+    const res = await fetch('/api/snapshots', { method: compute ? 'POST' : 'GET' });
+    if (res.ok) return (await res.json()) as SnapshotsState;
+  } catch {
+    /* sin server */
+  }
+  return { status: 'unavailable' };
 }
 
 /**

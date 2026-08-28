@@ -52,6 +52,7 @@ hotspots, acoplamiento oculto y qué le baja la nota.
 | `--fail-on-cycles` | | Sale con código ≠ 0 si hay dependencias circulares |
 | `--fail-on-error` | | Sale con error si hay issues de severidad "error" |
 | `--max-complexity <n>` | `--max-complexity 15` | Sale con error si la complejidad promedio supera `n` |
+| `--snapshots [n]` | `--snapshots 30` | Re-analiza ~n puntos de la historia (`git worktree`) y escribe `snapshots.json` + tabla de evolución. Lento. Default 20. |
 
 ---
 

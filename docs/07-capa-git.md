@@ -65,6 +65,31 @@ medida que se crearon y los que se tocaron en ese tramo **pulsan** (las "olas").
 > Se ve mejor en repos con historia repartida en el tiempo. Si casi todos los
 > commits son del mismo día, el timeline queda plano.
 
+### Snapshots reales ("precisión histórica")
+
+El timeline de arriba usa las métricas de **hoy**. Los **snapshots reales**
+re-analizan el proyecto en ~20 puntos de la historia para tener las métricas de
+**cada época**.
+
+`buildSnapshots(rootDir, { count })` (en `@codegraph/core/node`):
+
+1. `git log --first-parent --reverse` → los commits de la rama.
+2. Elige `count` repartidos parejo (siempre incluye el primero y el último).
+3. Por cada uno: `git worktree add --detach` en una carpeta temporal →
+   `discoverFiles` → `analyzeProject` → guarda un `SnapshotPoint` liviano
+   (health, archivos, líneas, complejidad, ciclos, dominios) → `git worktree remove`.
+
+Es **lento** (N análisis completos), así que es opt-in:
+
+| Dónde | Cómo |
+|---|---|
+| **CLI** | `codegraph analyze . --snapshots [n]` → escribe `.codegraph/snapshots.json` + tabla de evolución con sparkline del health |
+| **Web** | botón **📊 precisión histórica** en el Timeline → `POST /api/snapshots` (lo calcula el server, con progreso) → panel con las métricas de la época del playhead |
+| **Tipo** | `SnapshotSeries { headSha, generatedAt, points: SnapshotPoint[] }` (~1–4 KB) |
+
+Falta: correrlo en un worker (hoy bloquea el `serve` unos segundos por punto) y
+guardar el grafo de cada snapshot (hoy solo evolucionan los números).
+
 ## Acoplamiento temporal (acoplamiento oculto)
 
 Dos archivos que en git se modifican **juntos** una y otra vez tienen una

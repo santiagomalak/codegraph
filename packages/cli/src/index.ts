@@ -34,6 +34,7 @@ program
   .option('--fail-on-cycles', 'salir con error si hay dependencias circulares')
   .option('--fail-on-error', 'salir con error si hay issues de severidad "error"')
   .option('--max-complexity <n>', 'salir con error si la complejidad promedio supera n')
+  .option('--snapshots [n]', 're-analizar ~n puntos de la historia con git worktree (default 20)')
   .action((carpeta: string, opts) => runAnalyze(carpeta, opts).catch(fail));
 
 program

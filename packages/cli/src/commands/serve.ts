@@ -13,8 +13,13 @@ import { existsSync, watch } from 'node:fs';
 import { extname, join, resolve } from 'node:path';
 import { fileURLToPath } from 'node:url';
 import pc from 'picocolors';
-import { analyzeProject } from '@codegraph/core';
-import { discoverFiles, readGitHistory, readProjectConfig } from '@codegraph/core/node';
+import { analyzeProject, type SnapshotSeries } from '@codegraph/core';
+import {
+  buildSnapshots,
+  discoverFiles,
+  readGitHistory,
+  readProjectConfig,
+} from '@codegraph/core/node';
 
 const MIME: Record<string, string> = {
   '.html': 'text/html; charset=utf-8',
@@ -71,6 +76,35 @@ export async function runServe(
   const webDist = findWebDist();
   const clients = new Set<ServerResponse>();
 
+  // ── Snapshots históricos (se calculan a pedido; son lentos) ────────────
+  let snapshots: SnapshotSeries | null = null;
+  let snapshotJob: Promise<unknown> | null = null;
+  let snapshotProgress = { done: 0, total: 0 };
+
+  // Cache en disco de una corrida previa de `analyze --snapshots`.
+  try {
+    const disk = await readFile(join(rootDir, '.codegraph', 'snapshots.json'), 'utf8');
+    snapshots = JSON.parse(disk) as SnapshotSeries;
+  } catch {
+    /* no hay cache */
+  }
+
+  function startSnapshots(): void {
+    if (snapshotJob || snapshots) return;
+    snapshotProgress = { done: 0, total: 20 };
+    snapshotJob = buildSnapshots(rootDir, {
+      count: 20,
+      onProgress: (done, total) => (snapshotProgress = { done, total }),
+    })
+      .then((s) => {
+        snapshots = s;
+      })
+      .catch(() => {})
+      .finally(() => {
+        snapshotJob = null;
+      });
+  }
+
   const server = createServer(async (req, res) => {
     const url = new URL(req.url ?? '/', `http://localhost:${port}`);
 
@@ -82,6 +116,20 @@ export async function runServe(
       } catch (err) {
         res.writeHead(500, { 'content-type': 'application/json; charset=utf-8' });
         res.end(JSON.stringify({ error: (err as Error).message }));
+      }
+      return;
+    }
+
+    if (url.pathname === '/api/snapshots') {
+      // POST (o ?compute=1) arranca el cálculo; GET devuelve estado/resultado.
+      if (req.method === 'POST' || url.searchParams.has('compute')) startSnapshots();
+      res.writeHead(200, { 'content-type': 'application/json; charset=utf-8' });
+      if (snapshots) {
+        res.end(JSON.stringify({ status: 'ready', series: snapshots }));
+      } else if (snapshotJob) {
+        res.end(JSON.stringify({ status: 'computing', progress: snapshotProgress }));
+      } else {
+        res.end(JSON.stringify({ status: 'idle' }));
       }
       return;
     }

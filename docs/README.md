@@ -26,7 +26,7 @@ Ver también:
 ## Estado actual
 
 Fases 1 a 4 completas. En curso: escala (canvas/WebGL), extensión de VS Code,
-panel de IA en la web, snapshots reales del timeline. Ver [01 · Visión y fases](./01-vision-y-fases.md).
+panel de IA en la web. Ver [01 · Visión y fases](./01-vision-y-fases.md).
 
 ✅ **Fase 1 — Fundación**
 - Monorepo con npm workspaces (`packages/core`, `packages/cli`, `packages/mcp`, `packages/web`).
@@ -63,6 +63,8 @@ panel de IA en la web, snapshots reales del timeline. Ver [01 · Visión y fases
 - Se ve en el CLI, el CODEMAP, la web (glow naranja, líneas punteadas) y el MCP.
 - **Timeline**: barra con el histograma de actividad + playhead; los archivos
   aparecen a medida que se crearon y pulsan cuando se los tocó en ese tramo.
+- **Snapshots históricos**: `--snapshots` re-analiza ~20 puntos de la historia
+  (`git worktree`) → health, complejidad y dominios reales de cada época.
 
 ✅ **Motor potente**
 - **5 lenguajes**: Python, JS/TS, Go, Rust, Java.
@@ -70,7 +72,6 @@ panel de IA en la web, snapshots reales del timeline. Ver [01 · Visión y fases
   módulos de Go (go.mod) / Rust (`crate::`, `mod`) / Java (nombre completo).
 
 🚧 **Fase 5 — Escala y producto**
-- Timeline con **snapshots reales** (métricas de cada época, no las actuales).
 - Render en canvas/WebGL para proyectos muy grandes.
 - **Extensión de VS Code** (grafo lateral, "explicá este archivo", marcas de hotspot).
 - Panel de IA en la web ("explicá este nodo / dominio").

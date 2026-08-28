@@ -180,6 +180,40 @@ export interface GitTimeline {
 }
 
 /**
+ * El proyecto medido en un punto de su historia (un commit). Lo produce
+ * `buildSnapshots` re-analizando el repo en ~20 commits repartidos, con
+ * `git worktree`. A diferencia del `GitTimeline` (que usa las métricas de hoy),
+ * acá cada punto tiene las métricas **reales de esa época**.
+ */
+export interface SnapshotPoint {
+  /** SHA del commit (10 chars). */
+  sha: string;
+  /** Fecha ISO del commit. */
+  date: string;
+  /** Primera línea del mensaje del commit. */
+  subject: string;
+  files: number;
+  loc: number;
+  symbols: number;
+  avgComplexity: number;
+  /** Health score 0..100 de esa época. */
+  health: number;
+  grade: HealthScore['grade'];
+  issues: number;
+  circularDeps: number;
+  /** Dominios de esa época (label → nº de archivos), top 8. */
+  domains: Array<{ label: string; files: number }>;
+}
+
+/** La historia del proyecto re-analizada en varios puntos. */
+export interface SnapshotSeries {
+  /** SHA de HEAD cuando se generó (para detectar si quedó viejo). */
+  headSha: string;
+  generatedAt: string;
+  points: SnapshotPoint[];
+}
+
+/**
  * Dos archivos que se modifican juntos en git una y otra vez ("acoplamiento
  * temporal"). Si además NO se importan entre sí, es acoplamiento *oculto*:
  * dependen uno del otro pero el código no lo dice.

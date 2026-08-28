@@ -92,6 +92,7 @@ Escribe en `tu-proyecto/.codegraph/`:
 | `--fail-on-cycles` | Sale con error si hay dependencias circulares (útil en CI) |
 | `--fail-on-error` | Sale con error si hay issues de severidad "error" |
 | `--max-complexity <n>` | Sale con error si la complejidad promedio supera `n` |
+| `--snapshots [n]` | Re-analiza ~n puntos de la historia (`git worktree`) → `snapshots.json` + evolución del proyecto. Lento. |
 
 ### `codegraph serve [carpeta]`
 
@@ -186,12 +187,10 @@ Ver también [`MIGRATION.md`](./MIGRATION.md) (qué cambió respecto de la v2).
 ## Roadmap
 
 Hecho: motor multi-lenguaje · CLI · web interactiva · servidor MCP · capa git
-(hotspots, acoplamiento, timeline) · resolución de imports precisa.
+(hotspots, acoplamiento, timeline + snapshots históricos) · imports precisos.
 
 En camino:
 
-- **Timeline con snapshots reales** — re-analizar ~20 puntos de la historia con
-  `git worktree` para tener las métricas de cada época, no las de hoy.
 - **Render en canvas/WebGL** — para proyectos de miles de nodos (hoy el SVG se
   ahoga pasando ~500).
 - **Extensión de VS Code** — el grafo como panel lateral, "explicá este archivo"
