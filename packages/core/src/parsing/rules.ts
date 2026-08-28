@@ -60,6 +60,25 @@ function isCommentLine(line: string, language: LanguageId): boolean {
   return t.startsWith('//') || t.startsWith('*') || t.startsWith('/*');
 }
 
+/**
+ * ¿La posición `index` de la línea cae dentro de un string literal?
+ * Heurística: cuenta comillas sin escapar antes de esa posición; si son impares,
+ * estamos dentro de un string. Evita falsos positivos cuando el código define
+ * mensajes o patrones (ej: message: 'uso de eval()').
+ */
+function insideStringLiteral(line: string, index: number): boolean {
+  let single = 0;
+  let double = 0;
+  let back = 0;
+  for (let i = 0; i < index; i++) {
+    if (line[i - 1] === '\\') continue;
+    if (line[i] === "'") single++;
+    else if (line[i] === '"') double++;
+    else if (line[i] === '`') back++;
+  }
+  return single % 2 === 1 || double % 2 === 1 || back % 2 === 1;
+}
+
 /** Aplica todas las reglas de texto a un archivo. */
 export function detectIssues(language: LanguageId, content: string): Issue[] {
   const rules = [...COMMON_RULES, ...(BY_LANGUAGE[language] ?? [])];
@@ -71,16 +90,20 @@ export function detectIssues(language: LanguageId, content: string): Issue[] {
     for (const rule of rules) {
       // En líneas comentadas solo dejamos pasar las reglas de "tarea" (todo/fixme/...).
       if (commentLine && rule.category !== 'todo' && rule.category !== 'smell') continue;
-      if (rule.pattern.test(line)) {
-        issues.push({
-          rule: rule.id,
-          category: rule.category,
-          severity: rule.severity,
-          message: rule.message,
-          line: i + 1,
-          snippet: line.trim().slice(0, 100),
-        });
-      }
+
+      const match = new RegExp(rule.pattern.source, rule.pattern.flags).exec(line);
+      if (!match) continue;
+      // Ignorar cuando el match está dentro de un string (mensajes, patrones, flags...).
+      if (rule.category !== 'todo' && insideStringLiteral(line, match.index)) continue;
+
+      issues.push({
+        rule: rule.id,
+        category: rule.category,
+        severity: rule.severity,
+        message: rule.message,
+        line: i + 1,
+        snippet: line.trim().slice(0, 100),
+      });
     }
   });
 

@@ -58,9 +58,19 @@ function mostFrequentFirstSegment(paths: string[]): string {
   return best;
 }
 
+/** Segmentos de carpeta demasiado genéricos para nombrar un dominio. */
+const GENERIC_SEGMENTS = new Set(['src', 'lib', 'app', 'dist', 'build', 'source', 'packages']);
+
 function labelFor(files: string[]): string {
   const dir = commonDir(files);
-  if (dir) return dir.split('/').pop()!;
+  if (dir) {
+    // Elegir el último segmento que NO sea genérico ("web/src" → "web").
+    const parts = dir.split('/');
+    for (let i = parts.length - 1; i >= 0; i--) {
+      if (!GENERIC_SEGMENTS.has(parts[i]!)) return parts[i]!;
+    }
+    return parts[parts.length - 1]!;
+  }
   const seg = mostFrequentFirstSegment(files);
   return seg && seg.includes('.') ? 'raíz' : seg || 'raíz';
 }

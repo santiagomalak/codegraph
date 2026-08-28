@@ -60,14 +60,22 @@ export class ImportResolver {
   // ── JavaScript / TypeScript ──────────────────────────────────────────────
   private resolveJs(importerPath: string, specifier: string): string | undefined {
     if (!specifier.startsWith('.')) return undefined; // paquete npm
-    const baseTarget = normalize(`${dirname(importerPath)}/${specifier}`);
+    const base = normalize(`${dirname(importerPath)}/${specifier}`);
 
-    if (this.files.has(baseTarget)) return baseTarget;
-    for (const ext of JS_EXTENSIONS) {
-      if (this.files.has(baseTarget + ext)) return baseTarget + ext;
-    }
-    for (const idx of JS_INDEX) {
-      if (this.files.has(baseTarget + idx)) return baseTarget + idx;
+    // NodeNext escribe imports con ".js" aunque el archivo real sea ".ts".
+    // Probamos también quitando esa extensión "de mentira".
+    const bases = [base];
+    const jsLike = base.match(/\.(js|jsx|mjs|cjs)$/);
+    if (jsLike) bases.push(base.slice(0, -jsLike[0].length));
+
+    for (const b of bases) {
+      if (this.files.has(b)) return b;
+      for (const ext of JS_EXTENSIONS) {
+        if (this.files.has(b + ext)) return b + ext;
+      }
+      for (const idx of JS_INDEX) {
+        if (this.files.has(b + idx)) return b + idx;
+      }
     }
     return undefined;
   }

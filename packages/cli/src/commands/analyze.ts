@@ -8,7 +8,7 @@
  * 5. si se pidió, corta con exit code != 0 cuando hay problemas (útil en CI)
  */
 
-import { mkdir, writeFile } from 'node:fs/promises';
+import { mkdir, stat, writeFile } from 'node:fs/promises';
 import { basename, isAbsolute, join, resolve } from 'node:path';
 import pc from 'picocolors';
 import { analyzeProject, toCodemapMarkdown, type ProjectAnalysis } from '@codegraph/core';
@@ -119,7 +119,13 @@ export async function runAnalyze(target: string, flags: AnalyzeFlags): Promise<v
 
     printSummary(analysis);
     console.log(pc.green(`  ✓ escrito en ${outDir}`));
-    console.log(pc.dim(`    ${written.join('  ')}`));
+    for (const name of written) {
+      const bytes = (await stat(join(outDir, name))).size;
+      const kb = (bytes / 1024).toFixed(1);
+      const tokens = Math.round(bytes / 3.7); // estimación gruesa
+      const hint = name === 'CODEMAP.md' ? pc.green('  → para pegarle a una IA') : '';
+      console.log(pc.dim(`    ${name.padEnd(14)} ${kb.padStart(6)} KB  ~${tokens.toLocaleString('es')} tokens${hint}`));
+    }
     console.log('');
   }
 
