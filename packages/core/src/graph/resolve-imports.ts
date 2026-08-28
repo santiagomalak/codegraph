@@ -77,10 +77,30 @@ function sourceCandidates(distPath: string): string[] {
   ].map((p) => normalize(p));
 }
 
+/** Raíces de código habituales que no son parte del "nombre" del módulo. */
+const SOURCE_ROOTS = [
+  'src/main/java/',
+  'src/test/java/',
+  'src/main/kotlin/',
+  'app/src/main/java/',
+  'src/',
+];
+
+function stripSourceRoot(path: string): string {
+  for (const root of SOURCE_ROOTS) {
+    if (path.startsWith(root)) return path.slice(root.length);
+  }
+  return path;
+}
+
 export class ImportResolver {
   private files: Set<string>;
   /** Índice para Python: "paquete.modulo" → "paquete/modulo.py". */
   private pythonModules = new Map<string, string>();
+  /** Índice para Java: "com.example.Foo" → "src/main/java/com/example/Foo.java". */
+  private javaTypes = new Map<string, string>();
+  /** Índice para Go: "carpeta/del/paquete" → archivo representativo .go. */
+  private goPackages = new Map<string, string>();
   private config: ResolverConfig;
   private aliases: AliasRule[];
 
@@ -89,6 +109,34 @@ export class ImportResolver {
     this.config = config;
     this.aliases = compileAliases(config);
     this.buildPythonIndex();
+    this.buildJavaIndex();
+    this.buildGoIndex();
+  }
+
+  private buildJavaIndex(): void {
+    for (const path of this.files) {
+      if (!path.endsWith('.java')) continue;
+      const fqn = stripSourceRoot(path).replace(/\.java$/, '').replace(/\//g, '.');
+      this.javaTypes.set(fqn, path);
+    }
+  }
+
+  private buildGoIndex(): void {
+    // Por carpeta: elegimos un archivo .go "representativo" (evita los _test.go).
+    const byDir = new Map<string, string[]>();
+    for (const path of this.files) {
+      if (!path.endsWith('.go')) continue;
+      const dir = path.slice(0, path.lastIndexOf('/')) || '.';
+      if (!byDir.has(dir)) byDir.set(dir, []);
+      byDir.get(dir)!.push(path);
+    }
+    for (const [dir, list] of byDir) {
+      const pick =
+        list.find((p) => !p.endsWith('_test.go') && p.endsWith(`/${dir.split('/').pop()}.go`)) ??
+        list.find((p) => !p.endsWith('_test.go')) ??
+        list[0]!;
+      this.goPackages.set(dir, pick);
+    }
   }
 
   private buildPythonIndex(): void {
@@ -106,7 +154,80 @@ export class ImportResolver {
   /** Devuelve el path del archivo destino, o undefined si es externo/no resoluble. */
   resolve(importerPath: string, ref: ImportRef): string | undefined {
     if (importerPath.endsWith('.py')) return this.resolvePython(importerPath, ref.specifier);
+    if (importerPath.endsWith('.java')) return this.resolveJava(ref.specifier);
+    if (importerPath.endsWith('.go')) return this.resolveGo(ref.specifier);
+    if (importerPath.endsWith('.rs')) return this.resolveRust(importerPath, ref.specifier);
     return this.resolveJs(importerPath, ref.specifier);
+  }
+
+  // ── Java ─────────────────────────────────────────────────────────────────
+  private resolveJava(specifier: string): string | undefined {
+    // "com.example.Foo" directo; "com.example.*" no se puede mapear a un archivo.
+    if (specifier.endsWith('.*')) return undefined;
+    return this.javaTypes.get(specifier);
+  }
+
+  // ── Go ───────────────────────────────────────────────────────────────────
+  private resolveGo(specifier: string): string | undefined {
+    const mod = this.config.goModule;
+    if (!mod) return undefined;
+    if (specifier === mod) return this.goPackages.get('.') ?? undefined;
+    if (!specifier.startsWith(mod + '/')) return undefined;
+    const dir = specifier.slice(mod.length + 1);
+    return this.goPackages.get(dir);
+  }
+
+  // ── Rust ─────────────────────────────────────────────────────────────────
+  private resolveRust(importerPath: string, specifier: string): string | undefined {
+    const dir = dirname(importerPath);
+    const segs = specifier.split('::').filter(Boolean);
+    if (segs.length === 0) return undefined;
+
+    // `mod foo;` sintético → archivo hermano.
+    if (segs[0] === 'mod' && segs[1]) {
+      return this.tryRustModule(dir, segs[1]);
+    }
+
+    let baseDir: string;
+    let rest: string[];
+    if (segs[0] === 'crate') {
+      baseDir = this.rustCrateRoot();
+      rest = segs.slice(1);
+    } else if (segs[0] === 'self') {
+      baseDir = dir;
+      rest = segs.slice(1);
+    } else if (segs[0] === 'super') {
+      baseDir = dirname(dir);
+      rest = segs.slice(1);
+    } else {
+      // `use foo::Bar` — puede ser un módulo del crate o una dependencia externa.
+      baseDir = this.rustCrateRoot();
+      rest = segs;
+    }
+
+    // Probamos del path más largo al más corto (el último segmento suele ser un
+    // item —struct/fn— que vive dentro del módulo anterior).
+    for (let take = rest.length; take >= 1; take--) {
+      const modPath = rest.slice(0, take);
+      const hit = this.tryRustModule(baseDir, ...modPath);
+      if (hit) return hit;
+    }
+    return undefined;
+  }
+
+  private rustCrateRoot(): string {
+    for (const cand of ['src', '.']) {
+      if (this.files.has(`${cand}/lib.rs`) || this.files.has(`${cand}/main.rs`)) return cand;
+    }
+    return 'src';
+  }
+
+  private tryRustModule(baseDir: string, ...mods: string[]): string | undefined {
+    const joined = normalize([baseDir, ...mods].join('/'));
+    for (const cand of [`${joined}.rs`, `${joined}/mod.rs`]) {
+      if (this.files.has(cand)) return cand;
+    }
+    return undefined;
   }
 
   // ── JavaScript / TypeScript ──────────────────────────────────────────────

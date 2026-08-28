@@ -25,7 +25,7 @@ Ver también:
 ✅ **Fase 1 — Fundación**
 - Monorepo con npm workspaces (`packages/core`, `packages/cli`, `packages/web`).
 - Motor de análisis real con **tree-sitter** (AST de verdad, no regex) para
-  Python y JavaScript/TypeScript.
+  Python, JavaScript/TypeScript, Go, Rust y Java.
 - Grafo de conocimiento multicapa: archivos, símbolos, dominios, externos.
 - Detección de dependencias circulares (Tarjan).
 - Agrupación automática en dominios (Louvain).

@@ -44,8 +44,9 @@ motor sirve a un CLI, a una web y a un servidor MCP.
 - **Se evoluciona este repo** (no uno nuevo). El motor viejo se reescribió; la
   web vieja se migra en la Fase 2.
 - **Monorepo con npm workspaces** — no hace falta instalar pnpm ni aprender nada nuevo.
-- **Lenguajes prioritarios:** Python y JavaScript/TypeScript. El resto se agrega
-  con más gramáticas tree-sitter, sin cambiar la arquitectura.
+- **Lenguajes:** Python, JavaScript/TypeScript, Go, Rust y Java. Sumar más es
+  agregar una gramática tree-sitter + una entrada en `language-specs.ts`, sin
+  tocar la arquitectura.
 - **Integración IA:** las dos vías — servidor MCP *y* chat dentro de la app.
 - **Objetivo:** open source / producto.
 

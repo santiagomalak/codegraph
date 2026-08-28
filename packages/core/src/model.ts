@@ -17,6 +17,9 @@ export type LanguageId =
   | 'typescript'
   | 'jsx'
   | 'tsx'
+  | 'go'
+  | 'rust'
+  | 'java'
   | 'css'
   | 'json'
   | 'markdown'
@@ -74,6 +77,11 @@ export interface ResolverConfig {
    * Un import de `<nombre>` o `<nombre>/sub` se resuelve dentro de esa carpeta.
    */
   workspaces?: Record<string, WorkspacePackage>;
+  /**
+   * Ruta de módulo de `go.mod` (ej: `github.com/me/proj`). Un import Go que
+   * empiece con este prefijo se resuelve a una carpeta del proyecto.
+   */
+  goModule?: string;
 }
 
 export interface WorkspacePackage {
@@ -346,7 +354,8 @@ export interface AnalyzeOptions {
   timeline?: GitTimeline;
   /**
    * Cómo resolver imports que no son rutas relativas (alias de tsconfig,
-   * paquetes de un monorepo). La arma `readProjectConfig` de `@codegraph/core/node`.
+   * paquetes de un monorepo, módulo de go.mod). La arma `readProjectConfig`
+   * de `@codegraph/core/node`.
    */
   resolve?: ResolverConfig;
 }

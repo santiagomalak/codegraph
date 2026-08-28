@@ -17,6 +17,8 @@ import { detectIssues } from './rules.js';
 import { getParser } from './parser-registry.js';
 import { parsePython } from './parse-python.js';
 import { parseJavaScript } from './parse-javascript.js';
+import { parseGeneric } from './parse-generic.js';
+import { LANGUAGE_SPECS } from './language-specs.js';
 
 /** Más grande que esto no se parsea con AST (protege memoria/tiempo). */
 const MAX_PARSE_BYTES = 1_500_000;
@@ -42,8 +44,10 @@ export async function parseFile(file: SourceFile, wasmDir?: string): Promise<Par
   try {
     const { parser } = await getParser(language, wasmDir);
     const tree = parser.parse(file.content);
-    const struct =
-      language === 'python'
+    const spec = LANGUAGE_SPECS[language];
+    const struct = spec
+      ? parseGeneric(tree.rootNode, file.path, spec)
+      : language === 'python'
         ? parsePython(tree.rootNode, file.path)
         : parseJavaScript(tree.rootNode, file.path);
 

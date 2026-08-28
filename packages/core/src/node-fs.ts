@@ -399,6 +399,15 @@ export async function readProjectConfig(rootDir: string): Promise<ResolverConfig
     if (Object.keys(workspaces).length) config.workspaces = workspaces;
   }
 
+  // ── go.mod (módulo de un proyecto Go) ─────────────────────────────────
+  try {
+    const goMod = await readFile(join(rootDir, 'go.mod'), 'utf8');
+    const m = goMod.match(/^\s*module\s+(\S+)/m);
+    if (m) config.goModule = m[1];
+  } catch {
+    /* no hay go.mod */
+  }
+
   return config;
 }
 

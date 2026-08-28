@@ -25,8 +25,9 @@ analysis.summary  // ProjectSummary — totales, stack detectado, health score
 ## Qué hace, en orden
 
 1. **Filtra** archivos ignorados (`node_modules`, `dist`, …) y sin lenguaje conocido.
-2. **Parsea** cada archivo con [tree-sitter](https://tree-sitter.github.io/) (Python y JS/TS/JSX/TSX):
-   imports, funciones, clases, métodos, llamadas entre símbolos, docstrings.
+2. **Parsea** cada archivo con [tree-sitter](https://tree-sitter.github.io/)
+   (Python · JS/TS/JSX/TSX · Go · Rust · Java): imports, funciones, clases,
+   métodos, llamadas entre símbolos, docstrings.
 3. **Métricas e issues** de texto: líneas, complejidad ciclomática, `console.log`, `eval`, TODOs…
 4. **Construye el grafo**: `file → symbol` (contains), `file → file` (imports),
    `symbol → symbol` (calls), `file → domain` (member-of).
@@ -50,6 +51,8 @@ src/
 │   ├── ast-utils.ts         # helpers para recorrer el árbol de sintaxis
 │   ├── parse-python.ts      # extrae estructura de .py
 │   ├── parse-javascript.ts  # extrae estructura de .js/.ts/.jsx/.tsx
+│   ├── parse-generic.ts     # parser guiado por spec (Go, Rust, Java)
+│   ├── language-specs.ts    # los nodos AST de cada lenguaje del parser genérico
 │   ├── rules.ts             # reglas heurísticas (issues)
 │   └── index.ts             # parseFile() — junta todo por archivo
 ├── graph/

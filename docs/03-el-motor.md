@@ -42,9 +42,24 @@ varias líneas).
 Cada lenguaje es una "gramática" compilada a WebAssembly (`.wasm`). El archivo
 `parser-registry.ts` las carga una sola vez y las cachea.
 
+### Lenguajes con AST
+
+| Lenguaje | Parser | Resolución de imports internos |
+|---|---|---|
+| Python | `parse-python.ts` | relativos (`.` `..`) + módulo absoluto |
+| JS / TS / JSX / TSX | `parse-javascript.ts` | relativos + alias tsconfig + monorepo |
+| Go | `parse-generic.ts` + spec | vía `module` de `go.mod` (por carpeta) |
+| Rust | `parse-generic.ts` + spec | `mod`, `crate::`, `self::`, `super::` |
+| Java | `parse-generic.ts` + spec | por nombre completo (`com.example.Foo`) |
+
+Go/Rust/Java usan un **parser genérico** (`parse-generic.ts`) guiado por una
+tabla (`language-specs.ts`) que dice qué nodos del AST son funciones, clases,
+imports, etc. Comparten estructura, así que no hace falta un archivo por lenguaje.
+CSS, JSON y Markdown entran en la lista pero sin símbolos ni imports.
+
 ### Qué extraemos
 
-Para cada archivo (`parsing/index.ts` → `parse-python.ts` / `parse-javascript.ts`):
+Para cada archivo (`parsing/index.ts` → el parser que corresponda):
 
 | Dato | Cómo |
 |---|---|

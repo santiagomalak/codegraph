@@ -22,6 +22,9 @@ const GRAMMAR_FILE: Partial<Record<LanguageId, string>> = {
   jsx: 'tree-sitter-javascript.wasm', // el grammar de JS ya soporta JSX
   typescript: 'tree-sitter-typescript.wasm',
   tsx: 'tree-sitter-tsx.wasm',
+  go: 'tree-sitter-go.wasm',
+  rust: 'tree-sitter-rust.wasm',
+  java: 'tree-sitter-java.wasm',
 };
 
 export type SyntaxNode = Parser.SyntaxNode;

@@ -53,20 +53,36 @@ export function closest(node: SyntaxNode, types: ReadonlySet<string>): SyntaxNod
  * Devuelve null si no se puede sacar un identificador simple.
  */
 export function calleeName(callNode: SyntaxNode): string | null {
-  // El nodo "función" puede estar en el field "function" (JS) o ser el primer hijo (Python).
+  // Algunos lenguajes ponen el nombre directo en un field del nodo de llamada:
+  //   Java  method_invocation      → field "name"
+  //   Java  object_creation_expr   → field "type"
+  //   Rust  macro_invocation       → field "macro"
+  const direct =
+    callNode.childForFieldName('name') ??
+    (callNode.type === 'object_creation_expression' ? callNode.childForFieldName('type') : null) ??
+    (callNode.type === 'macro_invocation' ? callNode.childForFieldName('macro') : null);
+  if (direct) return lastSegment(direct.text);
+
+  // El nodo "función" puede estar en el field "function" (JS/Go/Rust) o ser el primer hijo (Python).
   const fn = callNode.childForFieldName('function') ?? callNode.namedChildren[0];
   if (!fn) return null;
 
   switch (fn.type) {
     case 'identifier':
     case 'property_identifier':
+    case 'field_identifier':
       return fn.text;
-    // obj.method  /  a.b.c
+    // obj.method  /  a.b.c  /  pkg.Func (Go)  /  Type::method (Rust)
     case 'member_expression':
-    case 'attribute': {
+    case 'attribute':
+    case 'selector_expression':
+    case 'field_expression':
+    case 'scoped_identifier': {
       const prop =
         fn.childForFieldName('property') ??
         fn.childForFieldName('attribute') ??
+        fn.childForFieldName('field') ??
+        fn.childForFieldName('name') ??
         fn.namedChildren[fn.namedChildren.length - 1];
       return prop?.text ?? null;
     }
@@ -78,6 +94,11 @@ export function calleeName(callNode: SyntaxNode): string | null {
     default:
       return null;
   }
+}
+
+/** Último segmento de un nombre calificado: "a.b.c" → "c", "x::y" → "y". */
+function lastSegment(text: string): string {
+  return text.split(/::|\./).pop()!.trim();
 }
 
 /**

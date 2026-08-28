@@ -21,6 +21,9 @@ export const EXTENSION_LANGUAGE: Record<string, LanguageId> = {
   mts: 'typescript',
   cts: 'typescript',
   tsx: 'tsx',
+  go: 'go',
+  rs: 'rust',
+  java: 'java',
   css: 'css',
   scss: 'css',
   json: 'json',
@@ -34,6 +37,9 @@ export const LANGUAGE_COLOR: Record<LanguageId, string> = {
   typescript: '#3178c6',
   jsx: '#61dafb',
   tsx: '#61dafb',
+  go: '#00add8',
+  rust: '#dea584',
+  java: '#e76f00',
   css: '#c65d97',
   json: '#8bc34a',
   markdown: '#8b91a8',
@@ -47,6 +53,9 @@ export const PARSEABLE: ReadonlySet<LanguageId> = new Set<LanguageId>([
   'typescript',
   'jsx',
   'tsx',
+  'go',
+  'rust',
+  'java',
 ]);
 
 export const IGNORE_DIRS: ReadonlySet<string> = new Set([
