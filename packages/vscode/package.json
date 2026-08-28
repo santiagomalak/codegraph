@@ -1,0 +1,60 @@
+{
+  "name": "codegraph-vscode",
+  "displayName": "Code Graph",
+  "description": "El grafo de conocimiento de tu proyecto, dentro de VS Code: dependencias, dominios, hotspots.",
+  "version": "0.1.0",
+  "publisher": "santiagomalak",
+  "private": true,
+  "license": "MIT",
+  "engines": {
+    "vscode": "^1.85.0"
+  },
+  "categories": ["Visualization", "Programming Languages", "Other"],
+  "keywords": ["graph", "dependencies", "architecture", "code map", "hotspots"],
+  "main": "./dist/extension.js",
+  "activationEvents": ["onStartupFinished"],
+  "contributes": {
+    "commands": [
+      {
+        "command": "codegraph.showGraph",
+        "title": "mostrar el grafo",
+        "category": "Code Graph"
+      },
+      {
+        "command": "codegraph.reanalyze",
+        "title": "re-analizar el proyecto",
+        "category": "Code Graph"
+      }
+    ],
+    "configuration": {
+      "title": "Code Graph",
+      "properties": {
+        "codegraph.analyzeOnSave": {
+          "type": "boolean",
+          "default": true,
+          "description": "Re-analizar el proyecto (con debounce) al guardar un archivo."
+        },
+        "codegraph.hotspotGutter": {
+          "type": "boolean",
+          "default": true,
+          "description": "Marcar en el gutter los archivos que son hotspots (complejos + cambian mucho)."
+        }
+      }
+    }
+  },
+  "scripts": {
+    "build": "node build.mjs",
+    "watch": "node build.mjs --watch",
+    "typecheck": "tsc --noEmit"
+  },
+  "dependencies": {
+    "@codegraph/core": "3.0.0",
+    "web-tree-sitter": "^0.22.6"
+  },
+  "devDependencies": {
+    "@types/node": "^20.11.0",
+    "@types/vscode": "^1.85.0",
+    "esbuild": "^0.25.0",
+    "typescript": "^5.3.3"
+  }
+}

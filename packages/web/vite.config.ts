@@ -5,6 +5,9 @@ import react from '@vitejs/plugin-react';
 // En dev, Vite corre en :5173 y proxya /api al server del CLI en :4173.
 export default defineConfig({
   plugins: [react()],
+  // Rutas relativas: así el bundle sirve igual desde `/` (serve, Vercel) y
+  // desde un webview de VS Code (file://…/dist/).
+  base: './',
   server: {
     port: 5173,
     proxy: {

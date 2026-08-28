@@ -8,7 +8,7 @@
     "packages/*"
   ],
   "scripts": {
-    "build": "npm run build -w @codegraph/core && npm run build -w @codegraph/cli && npm run build -w @codegraph/mcp && npm run build -w @codegraph/web",
+    "build": "npm run build -w @codegraph/core && npm run build -w @codegraph/cli && npm run build -w @codegraph/mcp && npm run build -w @codegraph/web && npm run build -w codegraph-vscode",
     "test": "npm run test --workspaces --if-present",
     "typecheck": "npm run build -w @codegraph/core && npm run typecheck --workspaces --if-present",
     "analyze": "node packages/cli/dist/index.js analyze",

@@ -146,7 +146,8 @@ packages/
 │           tree-sitter · grafo · ciclos · dominios · git · exportadores
 ├── cli/    @codegraph/cli  — el comando `codegraph` (analyze / serve)
 ├── mcp/    @codegraph/mcp  — servidor MCP (13 herramientas para Claude)
-└── web/    @codegraph/web  — la interfaz (React + Vite + Tailwind + d3-force)
+├── web/    @codegraph/web  — la interfaz (React + Vite + Tailwind + d3-force)
+└── vscode/ codegraph-vscode — extensión de VS Code (reusa la web) · v0.1, en desarrollo
 docs/       documentación explicada, en castellano
 ```
 
@@ -193,9 +194,10 @@ En camino:
 
 - **Render en canvas/WebGL** — para proyectos de miles de nodos (hoy el SVG se
   ahoga pasando ~500).
-- **Extensión de VS Code** — el grafo como panel lateral, "explicá este archivo"
-  vía MCP, marcas de hotspot en el gutter, saltar a dependencias. Ver
-  [`docs/01`](./docs/01-vision-y-fases.md#extensión-de-vs-code).
+- **Extensión de VS Code** (`packages/vscode`, v0.1) — el grafo como panel, clic
+  en un nodo abre el archivo, marcas de hotspot en el gutter, acoplamiento en la
+  status bar. Falta empaquetar el `.vsix` y publicarla. Ver
+  [`packages/vscode/README.md`](./packages/vscode/README.md).
 - **Panel de IA en la web** — "explicá este nodo / este dominio" desde la UI.
 - Más lenguajes · publicar los paquetes en npm.
 

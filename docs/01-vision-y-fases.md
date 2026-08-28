@@ -65,7 +65,11 @@ capa fina encima:
 | **Aviso de acoplamiento** | Al abrir un archivo, "suele cambiar junto con: …" en la status bar |
 | **Re-análisis** | Al guardar (con debounce), incremental cuando esté listo |
 
-Encaja en la Fase 5. No requiere cambios en el motor.
+**Estado (v0.1, `packages/vscode`):** hecho el panel del grafo (reusa
+`packages/web` en un webview, comunicación por `postMessage`), clic en nodo →
+abre el archivo, marcas de hotspot en el gutter, acoplamiento en la status bar,
+re-análisis al guardar. Falta: empaquetar el `.vsix`, "explicá este archivo" vía
+MCP, snapshots en el panel, análisis incremental.
 
 ## ¿Un editor de código propio / app de escritorio?
 

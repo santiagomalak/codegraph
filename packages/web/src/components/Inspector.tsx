@@ -6,6 +6,7 @@ import type { ReactNode } from 'react';
 import type { ProjectAnalysis } from '@codegraph/core';
 import { dependentsOf } from '@codegraph/core/queries';
 import type { VizNode } from '../graph-model.js';
+import { isEmbedded, openInEditor } from '../vscode.js';
 
 const SEVERITY_COLOR: Record<string, string> = {
   error: 'text-red-400',
@@ -35,11 +36,16 @@ function Shell({
   title,
   subtitle,
   onClose,
+  openPath,
+  openLine,
   children,
 }: {
   title: string;
   subtitle: string;
   onClose: () => void;
+  /** Path a abrir en el editor (solo dentro de VS Code). */
+  openPath?: string;
+  openLine?: number;
   children: ReactNode;
 }) {
   return (
@@ -53,9 +59,20 @@ function Shell({
             {subtitle}
           </div>
         </div>
-        <button onClick={onClose} className="ml-2 text-slate-500 hover:text-slate-200">
-          ✕
-        </button>
+        <div className="ml-2 flex shrink-0 items-center gap-2">
+          {isEmbedded() && openPath && (
+            <button
+              onClick={() => openInEditor(openPath, openLine)}
+              className="rounded border border-ink-600 px-2 py-0.5 text-xs text-slate-300 hover:bg-ink-700"
+              title="Abrir en el editor"
+            >
+              Abrir →
+            </button>
+          )}
+          <button onClick={onClose} className="text-slate-500 hover:text-slate-200">
+            ✕
+          </button>
+        </div>
       </header>
       <div className="flex flex-col gap-4 p-4 text-sm">{children}</div>
     </aside>
@@ -82,7 +99,7 @@ function FileView({
     .map((c) => ({ other: c.a === path ? c.b : c.a, coupling: c.coupling, shared: c.shared }));
 
   return (
-    <Shell title={node.label} subtitle={path} onClose={onClose}>
+    <Shell title={node.label} subtitle={path} onClose={onClose} openPath={path}>
       <div className="grid grid-cols-2 gap-2 text-xs">
         <Info label="Lenguaje" value={node.language ?? '—'} />
         <Info label="Líneas" value={String(node.loc ?? 0)} />
@@ -218,7 +235,13 @@ function SymbolView({
   const nameOf = (id: string) => id.split('#').pop() ?? id;
 
   return (
-    <Shell title={node.label} subtitle={node.file ?? ''} onClose={onClose}>
+    <Shell
+      title={node.label}
+      subtitle={node.file ?? ''}
+      onClose={onClose}
+      openPath={node.file}
+      openLine={sym?.line}
+    >
       <div className="grid grid-cols-2 gap-2 text-xs">
         <Info label="Tipo" value={node.symKind ?? 'function'} />
         <Info label="Líneas" value={sym ? `${sym.line}–${sym.endLine}` : '—'} />

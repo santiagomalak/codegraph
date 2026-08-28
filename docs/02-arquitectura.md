@@ -14,7 +14,8 @@ codegraph/
 │   ├── core/             # @codegraph/core — el motor de análisis
 │   ├── cli/              # @codegraph/cli  — el comando `codegraph`
 │   ├── mcp/              # @codegraph/mcp  — servidor MCP para Claude
-│   └── web/              # @codegraph/web  — la interfaz (React + Vite + d3-force)
+│   ├── web/              # @codegraph/web  — la interfaz (React + Vite + d3-force)
+│   └── vscode/           # codegraph-vscode — extensión de VS Code (v0.1)
 ├── docs/                 # esta documentación
 ├── scripts/gen-demo.mjs  # genera el análisis de ejemplo para el deploy
 └── landing/              # ⚠️ scaffold de landing en Astro, heredado de la v2 (sin uso)
@@ -80,8 +81,19 @@ Ver [`06-servidor-mcp.md`](./06-servidor-mcp.md).
 SPA en **React + Vite + Tailwind + d3-force**. No analiza nada: le pide el JSON al
 CLI (`GET /api/analysis`) y lo dibuja. Si no hay servidor (deploy estático en
 Vercel), cae a un `demo-analysis.json` de ejemplo y lo marca como "modo demo".
+Dentro del webview de la extensión de VS Code, el análisis llega por
+`postMessage` en vez de `fetch` (ver `src/vscode.ts`).
 
 Ver [`05-la-interfaz.md`](./05-la-interfaz.md).
+
+### `codegraph-vscode` — extensión de VS Code (v0.1)
+
+Corre el motor en el proceso de la extensión y muestra el grafo en un webview
+que **reusa `packages/web`** compilada. Clic en un nodo abre el archivo; los
+hotspots se marcan en el gutter; el acoplamiento del archivo activo va en la
+status bar. Se compila con esbuild (`build.mjs`).
+
+Ver [`packages/vscode/README.md`](../packages/vscode/README.md).
 
 ## Cómo se conectan
 

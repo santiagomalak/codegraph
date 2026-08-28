@@ -9,6 +9,7 @@
 import { useCallback, useEffect, useMemo, useRef, useState, type ReactNode } from 'react';
 import type { ProjectAnalysis } from '@codegraph/core';
 import { fetchAnalysis, fetchSnapshots, watchForUpdates, type SnapshotsState } from './api.js';
+import { isEmbedded, openInEditor } from './vscode.js';
 import { buildVizGraph, type VizMode, type VizNode } from './graph-model.js';
 import { Toolbar } from './components/Toolbar.js';
 import { Sidebar } from './components/Sidebar.js';
@@ -248,7 +249,12 @@ export function App() {
               domainFilter={domainFilter}
               selectedId={selected?.id ?? null}
               search={search}
-              onSelect={setSelected}
+              onSelect={(n) => {
+                setSelected(n);
+                // En VS Code: seleccionar un archivo lo abre en el editor
+                // (preview, sin robar el foco).
+                if (n && isEmbedded() && n.kind === 'file' && n.path) openInEditor(n.path);
+              }}
               timelineBucket={timelineOpen ? timelineBucket : null}
             />
             <div className="pointer-events-none absolute left-3 top-3 text-xs text-slate-600">

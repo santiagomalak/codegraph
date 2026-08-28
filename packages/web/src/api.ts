@@ -8,13 +8,19 @@
  */
 
 import type { ProjectAnalysis, SnapshotSeries } from '@codegraph/core';
+import { isEmbedded, onEmbeddedAnalysis, requestEmbeddedAnalysis } from './vscode.js';
 
 export interface LoadResult {
   analysis: ProjectAnalysis;
   isDemo: boolean;
+  /** `true` si corre dentro de la extensión de VS Code (no hay server). */
+  embedded?: boolean;
 }
 
 export async function fetchAnalysis(fresh = false): Promise<LoadResult> {
+  if (isEmbedded()) {
+    return { analysis: await requestEmbeddedAnalysis(), isDemo: false, embedded: true };
+  }
   try {
     const res = await fetch(`/api/analysis${fresh ? '?fresh=1' : ''}`);
     if (res.ok) return { analysis: (await res.json()) as ProjectAnalysis, isDemo: false };
@@ -51,6 +57,11 @@ export function watchForUpdates(handlers: {
   onUpdate: () => void;
   onConnected?: () => void;
 }): () => void {
+  if (isEmbedded()) {
+    // En la extensión los updates llegan por postMessage al re-analizar.
+    handlers.onConnected?.();
+    return onEmbeddedAnalysis(() => handlers.onUpdate());
+  }
   let es: EventSource | null = null;
   try {
     es = new EventSource('/api/events');

@@ -1,0 +1,12 @@
+{
+  "version": "2.0.0",
+  "tasks": [
+    {
+      "label": "build-extension",
+      "type": "shell",
+      "command": "npm run build -w @codegraph/core && npm run build -w @codegraph/web && npm run build -w codegraph-vscode",
+      "problemMatcher": [],
+      "presentation": { "reveal": "silent" }
+    }
+  ]
+}

@@ -1,0 +1,7 @@
+src/**
+build.mjs
+tsconfig.json
+.vscode/**
+**/*.map
+node_modules/**
+!node_modules/web-tree-sitter/**
