@@ -25,6 +25,9 @@ interface Props {
 function bucketDate(t: GitTimeline, bucket: number): Date {
   const from = Date.parse(t.from);
   const to = Date.parse(t.to);
+  // En los extremos, la fecha exacta (así el snapshot de "hoy" = HEAD, no el anterior).
+  if (bucket <= 0) return new Date(from);
+  if (bucket >= t.buckets - 1) return new Date(to);
   return new Date(from + ((to - from) * (bucket + 0.5)) / t.buckets);
 }
 
