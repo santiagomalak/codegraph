@@ -53,9 +53,11 @@ Ver también:
 ✅ **Capa git**
 - Lee el historial y calcula **hotspots** (complejo + cambia mucho) por archivo.
 - Se ve en el CLI, el CODEMAP, la web (glow naranja + lista clicable) y el MCP.
+- **Timeline**: barra con el histograma de actividad + playhead; los archivos
+  aparecen a medida que se crearon y pulsan cuando se los tocó en ese tramo.
 
 🚧 **Sigue**
+- Timeline con **snapshots reales** (métricas de cada época, no las actuales).
 - Render en canvas/WebGL para proyectos muy grandes.
 - Chat con el proyecto (RAG sobre el grafo) + "explicá este nodo" en la UI.
 - Extensión de VS Code.
-- Timeline / coupling temporal (evolución del grafo commit a commit).

@@ -58,6 +58,10 @@ dominio → aísla ese dominio en el grafo (click de nuevo para quitar el filtro
 - **Agrupar por dominio** — separa las áreas en la pantalla y dibuja un "blob"
   detrás de cada una.
 - **Paquetes externos** — agrega nodos para `react`, `os`, etc.
+- **⏱ Timeline** — (si la carpeta es un repo git) abre una barra abajo con el
+  histograma de commits y un playhead. Al moverlo, el grafo muestra el proyecto
+  como estaba en esa fecha: los archivos aparecen a medida que se crearon y los
+  que se tocaron en ese tramo **pulsan**. Play para animarlo, "Hoy" para volver.
 - **• en vivo** — aparece cuando `serve --watch` está conectado.
 - **↻ Re-analizar** — vuelve a correr el análisis.
 

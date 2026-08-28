@@ -53,4 +53,18 @@ describe('capa git', () => {
     expect(r.summary.hotspots[0]!.path).toBe('src/hot.ts');
     expect(r.summary.hotspots[0]!.commits).toBe(40);
   });
+
+  it('pasa el timeline al resultado', async () => {
+    const timeline = {
+      from: '2024-01-01T00:00:00Z',
+      to: '2024-12-31T00:00:00Z',
+      buckets: 48,
+      commitsPerBucket: new Array(48).fill(0),
+      fileFirstBucket: { 'src/hot.ts': 0, 'src/calm.ts': 20 },
+      fileActivity: { 'src/hot.ts': new Array(48).fill(1), 'src/calm.ts': new Array(48).fill(0) },
+    };
+    const r = await analyzeProject(files, { projectName: 'x', timeline });
+    expect(r.timeline?.buckets).toBe(48);
+    expect(r.timeline?.fileFirstBucket['src/calm.ts']).toBe(20);
+  });
 });

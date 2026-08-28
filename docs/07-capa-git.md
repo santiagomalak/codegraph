@@ -49,11 +49,28 @@ sigue igual, sin hotspots.
 En un repo joven (pocos commits) el churn casi no diferencia — todos los archivos
 tienen 1–3 commits. La señal se vuelve útil en repos con historia real.
 
+## El timeline
+
+`readGitHistory` también divide la historia en **48 tramos iguales** por fecha y
+devuelve `analysis.timeline`:
+
+- `commitsPerBucket` — cuántos commits en cada tramo (el histograma de la barra)
+- `fileFirstBucket` — en qué tramo apareció cada archivo
+- `fileActivity` — cuántos commits tocaron cada archivo en cada tramo
+
+En la web hay un botón **⏱ Timeline**: abre una barra abajo del grafo con ese
+histograma y un playhead. Al moverlo (o darle play), los archivos **aparecen** a
+medida que se crearon y los que se tocaron en ese tramo **pulsan** (las "olas").
+
+> Se ve mejor en repos con historia repartida en el tiempo. Si casi todos los
+> commits son del mismo día, el timeline queda plano.
+
 ## Qué falta / se podría sumar
 
+- **Snapshots reales** (enfoque "los dos"): re-analizar ~20 puntos de la historia
+  con `git worktree` para tener las métricas reales de cada época.
 - **Autores por dominio** (quién conoce qué área)
-- **Edad del código** (archivos que nadie toca hace años = candidatos a revisar o borrar)
-- **Timeline**: un slider para ver cómo evolucionó el grafo commit a commit
+- **Edad del código** (archivos que nadie toca hace años)
 - **Coupling temporal**: archivos que siempre se modifican juntos aunque no se
-  importen (señal de acoplamiento oculto)
-- `git blame` por símbolo (no solo por archivo)
+  importen (acoplamiento oculto)
+- `git blame` por símbolo

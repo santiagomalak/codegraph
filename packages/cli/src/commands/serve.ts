@@ -48,10 +48,11 @@ export async function runServe(
   async function analyze(): Promise<string> {
     const started = Date.now();
     const { files } = await discoverFiles(rootDir);
-    const git = await readGitHistory(rootDir, files.map((f) => f.path));
+    const { stats: git, timeline } = await readGitHistory(rootDir, files.map((f) => f.path));
     const analysis = await analyzeProject(files, {
       projectName: rootDir.split(/[/\\]/).pop(),
       git: Object.keys(git).length > 0 ? git : undefined,
+      timeline: timeline ?? undefined,
     });
     cachedJson = JSON.stringify(analysis);
     console.log(

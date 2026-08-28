@@ -98,13 +98,14 @@ export async function runAnalyze(target: string, flags: AnalyzeFlags): Promise<v
     process.exit(1);
   }
 
-  const git = await readGitHistory(rootDir, files.map((f) => f.path));
+  const { stats: git, timeline } = await readGitHistory(rootDir, files.map((f) => f.path));
   const hasGit = Object.keys(git).length > 0;
 
   let lastPct = -1;
   const analysis = await analyzeProject(files, {
     projectName,
     git: hasGit ? git : undefined,
+    timeline: timeline ?? undefined,
     onProgress: (done, total) => {
       const pct = Math.floor((done / total) * 100);
       if (pct !== lastPct && pct % 10 === 0) {

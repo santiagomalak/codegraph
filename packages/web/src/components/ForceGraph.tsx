@@ -40,6 +40,8 @@ interface Props {
   domainFilter: string | null;
   selectedId: string | null;
   search: string;
+  /** null = presente (mostrar todo). Un número = mostrar el proyecto en ese tramo. */
+  timelineBucket: number | null;
   onSelect: (node: VizNode | null) => void;
 }
 
@@ -66,6 +68,7 @@ export function ForceGraph({
   domainFilter,
   selectedId,
   search,
+  timelineBucket,
   onSelect,
 }: Props) {
   const svgRef = useRef<SVGSVGElement | null>(null);
@@ -105,6 +108,8 @@ export function ForceGraph({
   // ── Zoom / pan ─────────────────────────────────────────────────────────
   const zoomRef = useRef<ZoomBehavior<SVGSVGElement, unknown> | null>(null);
   const userInteractedRef = useRef(false);
+  /** Ids visibles según el timeline (null = todos). Lo usa fitView. */
+  const visibleIdsRef = useRef<Set<string> | null>(null);
 
   useEffect(() => {
     const svg = svgRef.current;
@@ -130,7 +135,10 @@ export function ForceGraph({
   const fitView = useCallback((animated = false) => {
     const svg = svgRef.current;
     const zoom = zoomRef.current;
-    const all = nodesRef.current.filter((n) => n.x != null && n.y != null);
+    const vis = visibleIdsRef.current;
+    const all = nodesRef.current.filter(
+      (n) => n.x != null && n.y != null && (!vis || vis.has(n.id)),
+    );
     if (!svg || !zoom || all.length === 0) return;
 
     // Ignoramos el 4% de nodos más lejanos del centroide (outliers sueltos) para
@@ -312,6 +320,30 @@ export function ForceGraph({
     return false;
   };
 
+  // ── Timeline ──────────────────────────────────────────────────────────
+  const tl = graph.timeline;
+  const born = (id: string) => {
+    if (timelineBucket === null || !tl) return true;
+    // Un archivo que git no conoce (nuevo/sin commitear) recién "existe" al final.
+    const first = tl.fileFirstBucket[id] ?? tl.buckets - 1;
+    return first <= timelineBucket;
+  };
+  const justChanged = (id: string) =>
+    timelineBucket !== null && tl != null && (tl.fileActivity[id]?.[timelineBucket] ?? 0) > 0;
+  const visibleIds = useMemo(() => {
+    if (timelineBucket === null) return null;
+    return new Set(nodes.filter((n) => born(n.id)).map((n) => n.id));
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [nodes, timelineBucket, tl]);
+  visibleIdsRef.current = visibleIds;
+
+  // Reencuadrar (a lo visible) cuando cambia el tramo del timeline.
+  useEffect(() => {
+    if (timelineBucket === null || userInteractedRef.current) return;
+    const id = setTimeout(() => fitView(), 250);
+    return () => clearTimeout(id);
+  }, [timelineBucket, fitView]);
+
   // Blobs por dominio: solo tienen sentido cuando los nodos están agrupados
   // por dominio (si no, los archivos de un dominio están desparramados).
   const hulls = useMemo(() => {
@@ -377,6 +409,7 @@ export function ForceGraph({
               const s = l.source as VizNode;
               const t = l.target as VizNode;
               if (s.x == null || t.x == null) return null;
+              if (!born(s.id) || !born(t.id)) return null;
               const dim = isDimmed(s.id) && isDimmed(t.id);
               const hot = focusId != null && (s.id === focusId || t.id === focusId);
               const [cx, cy] = controlPoint(s, t);
@@ -397,8 +430,11 @@ export function ForceGraph({
             if (n.x == null || n.y == null) return null;
             const r = nodeRadius(n);
             const selected = n.id === selectedId;
-            const dim = isDimmed(n.id);
-            const showLabel = r > 9 || selected || n.id === focusId || anyMatch;
+            const alive = born(n.id);
+            const changed = alive && justChanged(n.id);
+            const dim = !alive || isDimmed(n.id);
+            const showLabel =
+              alive && (r > 9 || selected || n.id === focusId || anyMatch || changed);
             const isClass = n.kind === 'symbol' && n.symKind === 'class';
             return (
               <g
@@ -406,16 +442,23 @@ export function ForceGraph({
                 data-node
                 transform={`translate(${n.x},${n.y})`}
                 className="gnode"
-                style={{ cursor: 'pointer', opacity: dim ? 0.12 : 1 }}
-                onPointerDown={(e) => onNodePointerDown(e, n)}
+                style={{
+                  cursor: alive ? 'pointer' : 'default',
+                  opacity: !alive ? 0 : dim ? 0.12 : 1,
+                  pointerEvents: alive ? 'auto' : 'none',
+                }}
+                onPointerDown={(e) => alive && onNodePointerDown(e, n)}
                 onPointerUp={() => onNodePointerUp(n)}
-                onPointerEnter={() => setHoverId(n.id)}
+                onPointerEnter={() => alive && setHoverId(n.id)}
                 onPointerLeave={() => setHoverId(null)}
                 onClick={(e) => {
                   e.stopPropagation();
-                  onSelect(n);
+                  if (alive) onSelect(n);
                 }}
               >
+                {changed && (
+                  <circle className="gnode-pulse" r={r + 5} fill="none" stroke="#818cf8" strokeWidth={2} />
+                )}
                 {/* halo: hotspot (git) si hay, si no riesgo (complejidad+issues) */}
                 {(n.hotspot ?? n.risk ?? 0) > 0.5 && (
                   <>
@@ -481,6 +524,12 @@ export function ForceGraph({
           })}
         </g>
       </svg>
+
+      {timelineBucket !== null && visibleIds && visibleIds.size === 0 && (
+        <div className="pointer-events-none absolute inset-0 flex items-center justify-center text-sm text-slate-600">
+          En esta fecha el proyecto todavía no tenía archivos analizables.
+        </div>
+      )}
 
       <div className="absolute bottom-4 right-4 flex gap-2">
         <button

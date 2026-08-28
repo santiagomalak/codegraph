@@ -31,6 +31,8 @@ npm run dev:web                                 # terminal 2 (Vite :5173)
 - **Sidebar**: health score, métricas, stack, lenguajes, dominios (clic para aislar).
 - **Inspector**: detalle del archivo/símbolo, con links clicables a sus vecinos.
 - **Ctrl/Cmd + K**: buscador rápido.
+- **⏱ Timeline** (repos git): barra con el histograma de commits + playhead;
+  los archivos aparecen a medida que se crearon y pulsan cuando se los tocó.
 - **Toolbar**: agrupar por dominio, mostrar externos, re-analizar, indicador "en vivo".
 - Zoom/pan, arrastre de nodos, auto-encuadre.
 
@@ -49,7 +51,8 @@ src/
     ├── Sidebar.tsx
     ├── Inspector.tsx
     ├── Toolbar.tsx
-    └── CommandPalette.tsx
+    ├── CommandPalette.tsx
+    └── Timeline.tsx     # la barra temporal (repos git)
 ```
 
 ## Próximo

@@ -112,6 +112,25 @@ export interface GitStats {
   lastCommit: string;
 }
 
+/**
+ * Datos para el "timeline": la historia del proyecto dividida en `buckets`
+ * tramos iguales entre el primer y el último commit.
+ */
+export interface GitTimeline {
+  /** Fecha ISO del primer commit del rango analizado. */
+  from: string;
+  /** Fecha ISO del último commit. */
+  to: string;
+  /** En cuántos tramos se dividió la historia (fijo). */
+  buckets: number;
+  /** Cantidad de commits en cada tramo. length === buckets. */
+  commitsPerBucket: number[];
+  /** path → índice de tramo en el que el archivo apareció por primera vez. */
+  fileFirstBucket: Record<string, number>;
+  /** path → cuántos commits lo tocaron en cada tramo. length === buckets. */
+  fileActivity: Record<string, number[]>;
+}
+
 /** El resultado de parsear UN archivo. */
 export interface ParsedFile {
   path: string;
@@ -263,6 +282,8 @@ export interface ProjectAnalysis {
   files: ParsedFile[];
   graph: KnowledgeGraph;
   summary: ProjectSummary;
+  /** Datos para el slider temporal. Solo si la carpeta es un repo git. */
+  timeline?: GitTimeline;
 }
 
 export interface AnalyzeOptions {
@@ -281,4 +302,6 @@ export interface AnalyzeOptions {
    * La lee `readGitHistory` de `@codegraph/core/node`.
    */
   git?: Record<string, GitStats>;
+  /** Datos del timeline (los devuelve `readGitHistory` junto con `git`). */
+  timeline?: GitTimeline;
 }

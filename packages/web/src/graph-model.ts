@@ -7,7 +7,7 @@
  *   'symbols' → un nodo por función/clase, aristas = llamadas
  */
 
-import type { LanguageId, ProjectAnalysis } from '@codegraph/core';
+import type { GitTimeline, LanguageId, ProjectAnalysis } from '@codegraph/core';
 
 export type VizMode = 'files' | 'symbols';
 
@@ -60,6 +60,8 @@ export interface VizGraph {
   nodes: VizNode[];
   links: VizLink[];
   domains: VizDomain[];
+  /** Datos del timeline (pasan tal cual desde el análisis). */
+  timeline?: GitTimeline;
 }
 
 export interface BuildOptions {
@@ -120,7 +122,7 @@ export function buildVizGraph(analysis: ProjectAnalysis, opts: BuildOptions): Vi
         links.push({ source: e.source, target: e.target, kind: 'call', circular: false });
       }
     }
-    return { mode: 'symbols', nodes, links, domains };
+    return { mode: 'symbols', nodes, links, domains, timeline: analysis.timeline };
   }
 
   // ── modo 'files' ─────────────────────────────────────────────────────────
@@ -190,7 +192,7 @@ export function buildVizGraph(analysis: ProjectAnalysis, opts: BuildOptions): Vi
   const filtered = nodes.filter((n) => kept.has(n.id));
   links = links.filter((l) => kept.has(l.source as string) && kept.has(l.target as string));
 
-  return { mode: 'files', nodes: filtered, links, domains };
+  return { mode: 'files', nodes: filtered, links, domains, timeline: analysis.timeline };
 }
 
 /** Radio de un nodo según su "peso". */

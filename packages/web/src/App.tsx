@@ -15,6 +15,7 @@ import { Sidebar } from './components/Sidebar.js';
 import { Inspector } from './components/Inspector.js';
 import { ForceGraph } from './components/ForceGraph.js';
 import { CommandPalette, type PaletteItem } from './components/CommandPalette.js';
+import { Timeline } from './components/Timeline.js';
 
 export function App() {
   const [analysis, setAnalysis] = useState<ProjectAnalysis | null>(null);
@@ -32,6 +33,11 @@ export function App() {
   const [paletteOpen, setPaletteOpen] = useState(false);
   const [toast, setToast] = useState<string | null>(null);
   const toastTimer = useRef<number>();
+
+  const timeline = analysis?.timeline;
+  const [timelineOpen, setTimelineOpen] = useState(false);
+  const [timelineBucket, setTimelineBucket] = useState(0);
+  const [playing, setPlaying] = useState(false);
 
   const flash = useCallback((msg: string) => {
     setToast(msg);
@@ -163,6 +169,20 @@ export function App() {
         refreshing={refreshing}
         watching={watching}
         onOpenPalette={() => setPaletteOpen(true)}
+        hasTimeline={Boolean(timeline)}
+        timelineOpen={timelineOpen}
+        toggleTimeline={() => {
+          setTimelineOpen((v) => {
+            const next = !v;
+            if (next) {
+              setMode('files');
+              setTimelineBucket((timeline?.buckets ?? 1) - 1);
+            } else {
+              setPlaying(false);
+            }
+            return next;
+          });
+        }}
       />
 
       {isDemo && (
@@ -182,24 +202,41 @@ export function App() {
           }}
           onPickFile={selectFile}
         />
-        <main className="relative min-w-0 flex-1 bg-ink-950">
-          <ForceGraph
-            graph={viz}
-            groupByDomain={groupByDomain}
-            domainFilter={domainFilter}
-            selectedId={selected?.id ?? null}
-            search={search}
-            onSelect={setSelected}
-          />
-          <div className="pointer-events-none absolute left-3 top-3 text-xs text-slate-600">
-            {viz.nodes.length} nodos · {viz.links.length} {mode === 'files' ? 'imports' : 'llamadas'}
-          </div>
-          {toast && (
-            <div className="toast-in absolute bottom-4 left-1/2 -translate-x-1/2 rounded-lg border border-ink-600 bg-ink-800/90 px-4 py-2 text-sm text-slate-200 backdrop-blur">
-              {toast}
+        <div className="flex min-w-0 flex-1 flex-col">
+          <main className="relative min-w-0 flex-1 bg-ink-950">
+            <ForceGraph
+              graph={viz}
+              groupByDomain={groupByDomain}
+              domainFilter={domainFilter}
+              selectedId={selected?.id ?? null}
+              search={search}
+              onSelect={setSelected}
+              timelineBucket={timelineOpen ? timelineBucket : null}
+            />
+            <div className="pointer-events-none absolute left-3 top-3 text-xs text-slate-600">
+              {viz.nodes.length} nodos · {viz.links.length}{' '}
+              {mode === 'files' ? 'imports' : 'llamadas'}
             </div>
+            {toast && (
+              <div className="toast-in absolute bottom-4 left-1/2 -translate-x-1/2 rounded-lg border border-ink-600 bg-ink-800/90 px-4 py-2 text-sm text-slate-200 backdrop-blur">
+                {toast}
+              </div>
+            )}
+          </main>
+          {timelineOpen && timeline && (
+            <Timeline
+              timeline={timeline}
+              bucket={timelineBucket}
+              playing={playing}
+              onBucket={setTimelineBucket}
+              onPlay={setPlaying}
+              onClose={() => {
+                setTimelineOpen(false);
+                setPlaying(false);
+              }}
+            />
           )}
-        </main>
+        </div>
         {selected && (
           <Inspector
             node={selected}

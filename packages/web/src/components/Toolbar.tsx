@@ -21,6 +21,9 @@ interface Props {
   refreshing: boolean;
   watching: boolean;
   onOpenPalette: () => void;
+  hasTimeline: boolean;
+  timelineOpen: boolean;
+  toggleTimeline: () => void;
 }
 
 function Toggle({
@@ -111,6 +114,18 @@ export function Toolbar(props: Props) {
       </div>
 
       <div className="ml-auto flex items-center gap-3 text-xs text-slate-500">
+        {props.hasTimeline && (
+          <button
+            onClick={props.toggleTimeline}
+            className={`rounded-md border px-3 py-1.5 transition ${
+              props.timelineOpen
+                ? 'border-indigo-500 bg-indigo-500/15 text-indigo-300'
+                : 'border-ink-600 bg-ink-800 text-slate-300 hover:bg-ink-700'
+            }`}
+          >
+            ⏱ Timeline
+          </button>
+        )}
         {props.watching && (
           <span className="flex items-center gap-1.5 text-emerald-400">
             <span className="h-1.5 w-1.5 animate-pulse rounded-full bg-emerald-400" />

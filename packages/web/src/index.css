@@ -46,6 +46,23 @@ body {
   }
 }
 
+.gnode-pulse {
+  transform-box: fill-box;
+  transform-origin: center;
+  animation: pulse-ring 1.4s ease-out infinite;
+  pointer-events: none;
+}
+@keyframes pulse-ring {
+  0% {
+    transform: scale(0.75);
+    opacity: 0.9;
+  }
+  100% {
+    transform: scale(1.6);
+    opacity: 0;
+  }
+}
+
 .gnode-label {
   paint-order: stroke;
   stroke: #0a0c12;

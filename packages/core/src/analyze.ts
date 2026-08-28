@@ -62,5 +62,6 @@ export async function analyzeProject(
     files,
     graph,
     summary,
+    ...(options.timeline ? { timeline: options.timeline } : {}),
   };
 }

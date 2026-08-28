@@ -11,7 +11,7 @@ import { spawn } from 'node:child_process';
 import { readdir, readFile, stat } from 'node:fs/promises';
 import { join, relative, sep } from 'node:path';
 import { EXTENSION_LANGUAGE, IGNORE_DIRS } from './languages.js';
-import type { GitStats } from './model.js';
+import type { GitStats, GitTimeline } from './model.js';
 
 const MAX_FILE_BYTES = 1_500_000;
 const KNOWN_EXTENSIONS = new Set(Object.keys(EXTENSION_LANGUAGE));
@@ -109,17 +109,29 @@ function runGit(rootDir: string, args: string[]): Promise<string | null> {
   });
 }
 
+/** Cantidad de tramos del timeline. */
+const TIMELINE_BUCKETS = 48;
+
+export interface GitHistoryResult {
+  stats: Record<string, GitStats>;
+  timeline: GitTimeline | null;
+}
+
+/**
+ * Lee el historial de git: estadísticas por archivo (churn, autores, fechas) y
+ * los datos del timeline (actividad por tramo). Si no es un repo git → todo vacío.
+ */
 export async function readGitHistory(
   rootDir: string,
   knownPaths?: Iterable<string>,
-): Promise<Record<string, GitStats>> {
+): Promise<GitHistoryResult> {
   const filter = knownPaths ? new Set(knownPaths) : null;
 
   // git muestra los paths relativos a la RAÍZ del repo. Si `rootDir` es una
   // subcarpeta, hay que sacarle ese prefijo a cada path.
   const prefixRaw = await runGit(rootDir, ['rev-parse', '--show-prefix']);
-  if (prefixRaw === null) return {}; // no es un repo git
-  const prefix = prefixRaw.trim(); // "" si rootDir es la raíz, "packages/" si es subcarpeta
+  if (prefixRaw === null) return { stats: {}, timeline: null };
+  const prefix = prefixRaw.trim();
 
   const RS = '\x1e';
   const US = '\x1f';
@@ -131,7 +143,7 @@ export async function readGitHistory(
     `-n${MAX_COMMITS}`,
     `--format=${RS}%H${US}%an${US}%aI`,
   ]);
-  if (!raw) return {};
+  if (!raw) return { stats: {}, timeline: null };
 
   interface Acc {
     commits: number;
@@ -141,19 +153,24 @@ export async function readGitHistory(
     lastCommit: string;
   }
   const acc = new Map<string, Acc>();
+  const commitTimes: number[] = []; // uno por commit
+  const fileTimes = new Map<string, number[]>(); // path → timestamps que lo tocaron
+
   let author = '';
   let date = '';
+  let ts = 0;
 
   for (const line of raw.split('\n')) {
     if (line.startsWith(RS)) {
       const parts = line.slice(1).split(US);
       author = parts[1] ?? '';
       date = parts[2] ?? '';
+      ts = Date.parse(date) || 0;
+      if (ts) commitTimes.push(ts);
       continue;
     }
-    if (!line || !date) continue;
+    if (!line || !ts) continue;
 
-    // numstat: "<added>\t<removed>\t<path>"  (added/removed pueden ser "-")
     const tab1 = line.indexOf('\t');
     const tab2 = line.indexOf('\t', tab1 + 1);
     if (tab1 < 0 || tab2 < 0) continue;
@@ -161,14 +178,12 @@ export async function readGitHistory(
     const removed = Number(line.slice(tab1 + 1, tab2)) || 0;
     const repoPath = line.slice(tab2 + 1).trim();
     if (!repoPath) continue;
-    // Path relativo a rootDir (sacando el prefijo de la subcarpeta).
     if (prefix && !repoPath.startsWith(prefix)) continue;
     const path = prefix ? repoPath.slice(prefix.length) : repoPath;
     if (filter && !filter.has(path)) continue;
 
     let entry = acc.get(path);
     if (!entry) {
-      // git log viene de más nuevo a más viejo → el primero que vemos es el último commit.
       entry = { commits: 0, authors: new Set(), linesChanged: 0, firstCommit: date, lastCommit: date };
       acc.set(path, entry);
     }
@@ -177,11 +192,15 @@ export async function readGitHistory(
     entry.linesChanged += added + removed;
     if (date < entry.firstCommit) entry.firstCommit = date;
     if (date > entry.lastCommit) entry.lastCommit = date;
+
+    let times = fileTimes.get(path);
+    if (!times) fileTimes.set(path, (times = []));
+    times.push(ts);
   }
 
-  const result: Record<string, GitStats> = {};
+  const stats: Record<string, GitStats> = {};
   for (const [path, e] of acc) {
-    result[path] = {
+    stats[path] = {
       commits: e.commits,
       authors: e.authors.size,
       linesChanged: e.linesChanged,
@@ -189,5 +208,51 @@ export async function readGitHistory(
       lastCommit: e.lastCommit,
     };
   }
-  return result;
+
+  return { stats, timeline: buildTimeline(commitTimes, fileTimes) };
+}
+
+/** Divide la historia en `TIMELINE_BUCKETS` tramos iguales por fecha. */
+function buildTimeline(
+  commitTimes: number[],
+  fileTimes: Map<string, number[]>,
+): GitTimeline | null {
+  if (commitTimes.length === 0) return null;
+
+  const from = Math.min(...commitTimes);
+  let to = Math.max(...commitTimes);
+  if (to <= from) to = from + 86_400_000; // un día de margen si hay un solo commit
+
+  const span = to - from;
+  const bucketOf = (t: number) =>
+    Math.max(0, Math.min(TIMELINE_BUCKETS - 1, Math.floor(((t - from) / span) * TIMELINE_BUCKETS)));
+
+  const commitsPerBucket = new Array<number>(TIMELINE_BUCKETS).fill(0);
+  for (const t of commitTimes) {
+    const b = bucketOf(t);
+    commitsPerBucket[b] = (commitsPerBucket[b] ?? 0) + 1;
+  }
+
+  const fileFirstBucket: Record<string, number> = {};
+  const fileActivity: Record<string, number[]> = {};
+  for (const [path, times] of fileTimes) {
+    const activity = new Array<number>(TIMELINE_BUCKETS).fill(0);
+    let first = TIMELINE_BUCKETS - 1;
+    for (const t of times) {
+      const b = bucketOf(t);
+      activity[b] = (activity[b] ?? 0) + 1;
+      if (b < first) first = b;
+    }
+    fileFirstBucket[path] = first;
+    fileActivity[path] = activity;
+  }
+
+  return {
+    from: new Date(from).toISOString(),
+    to: new Date(to).toISOString(),
+    buckets: TIMELINE_BUCKETS,
+    commitsPerBucket,
+    fileFirstBucket,
+    fileActivity,
+  };
 }
