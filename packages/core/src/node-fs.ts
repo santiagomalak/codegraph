@@ -1,14 +1,15 @@
 /**
- * discover.ts — Recorre una carpeta del disco y devuelve los archivos de código.
+ * node-fs.ts — Utilidades que SÍ tocan el disco (solo Node).
  *
- * Solo lee archivos con una extensión que el motor entiende (ver core), se saltea
- * las carpetas ignoradas (node_modules, .git, dist, ...) y los archivos enormes.
- * Devuelve rutas relativas a la carpeta raíz, siempre con "/".
+ * Está fuera de `index.ts` a propósito: el resto del core no importa `node:*`
+ * para poder correr también en el navegador. Los consumidores de Node hacen:
+ *
+ *   import { discoverFiles } from '@codegraph/core/node';
  */
 
 import { readdir, readFile, stat } from 'node:fs/promises';
 import { join, relative, sep } from 'node:path';
-import { EXTENSION_LANGUAGE, IGNORE_DIRS } from '@codegraph/core';
+import { EXTENSION_LANGUAGE, IGNORE_DIRS } from './languages.js';
 
 const MAX_FILE_BYTES = 1_500_000;
 const KNOWN_EXTENSIONS = new Set(Object.keys(EXTENSION_LANGUAGE));
@@ -28,6 +29,10 @@ export interface DiscoverResult {
   skippedLarge: string[];
 }
 
+/**
+ * Recorre `rootDir` y devuelve los archivos de código (rutas relativas, POSIX).
+ * Se saltea carpetas ignoradas, dotfiles y archivos enormes.
+ */
 export async function discoverFiles(rootDir: string): Promise<DiscoverResult> {
   const files: DiscoverResult['files'] = [];
   const skippedLarge: string[] = [];
@@ -37,7 +42,7 @@ export async function discoverFiles(rootDir: string): Promise<DiscoverResult> {
     try {
       entries = await readdir(dir, { withFileTypes: true });
     } catch {
-      return; // sin permisos, etc.
+      return;
     }
 
     for (const entry of entries) {
@@ -60,7 +65,7 @@ export async function discoverFiles(rootDir: string): Promise<DiscoverResult> {
         }
         files.push({ path: rel, content: await readFile(full, 'utf8') });
       } catch {
-        // archivo ilegible: lo saltamos
+        /* ilegible: saltar */
       }
     }
   }

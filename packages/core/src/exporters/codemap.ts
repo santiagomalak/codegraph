@@ -1,138 +1,213 @@
 /**
  * codemap.ts — Convierte un ProjectAnalysis en un CODEMAP.md legible.
  *
- * El CODEMAP es un resumen en Markdown pensado para pegarle a una IA como
- * contexto: qué es el proyecto, su stack, su estructura, sus dependencias
- * circulares, sus archivos más pesados y sus problemas.
+ * El CODEMAP es el resumen que le pasás a una IA como contexto. Tiene 3 niveles
+ * de detalle y un presupuesto opcional de tokens:
+ *
+ *   toCodemapMarkdown(analysis)                        → 'normal'
+ *   toCodemapMarkdown(analysis, { detail: 'compact' }) → lo esencial, ~400 tokens
+ *   toCodemapMarkdown(analysis, { detail: 'full' })    → + símbolos e issues
+ *   toCodemapMarkdown(analysis, { maxTokens: 1500 })   → recorta para entrar
+ *
+ * Internamente arma "secciones" ordenadas por importancia y las va sumando
+ * mientras entren en el presupuesto.
  */
 
 import type { ProjectAnalysis } from '../model.js';
 
-function bar(value: number, max: number, width = 20): string {
+export type CodemapDetail = 'compact' | 'normal' | 'full';
+
+export interface CodemapOptions {
+  detail?: CodemapDetail;
+  /** Tope aproximado de tokens. Si se pasa, recorta secciones para entrar. */
+  maxTokens?: number;
+}
+
+/** Estimación gruesa: ~3.7 caracteres por token. */
+const estTokens = (text: string): number => Math.ceil(text.length / 3.7);
+
+interface Section {
+  /** Menor = más importante, se incluye primero. */
+  rank: number;
+  /** Nivel mínimo en el que aparece. */
+  minDetail: CodemapDetail;
+  text: string;
+}
+
+const DETAIL_ORDER: Record<CodemapDetail, number> = { compact: 0, normal: 1, full: 2 };
+
+function bar(value: number, max: number, width = 18): string {
   const filled = max > 0 ? Math.round((value / max) * width) : 0;
   return '█'.repeat(filled) + '░'.repeat(Math.max(0, width - filled));
 }
 
-export function toCodemapMarkdown(analysis: ProjectAnalysis): string {
+export function toCodemapMarkdown(analysis: ProjectAnalysis, opts: CodemapOptions = {}): string {
+  const detail: CodemapDetail = opts.detail ?? 'normal';
   const { summary, graph, files } = analysis;
-  const lines: string[] = [];
+  const sections: Section[] = [];
+  const add = (rank: number, minDetail: CodemapDetail, text: string) =>
+    sections.push({ rank, minDetail, text: text.trimEnd() });
 
-  lines.push(`# CODEMAP — ${summary.projectName}`);
-  lines.push('');
-  lines.push(`> Generado por Code Graph Unified · ${analysis.analyzedAt.slice(0, 10)}`);
-  lines.push('');
+  // ── 0. Cabecera + resumen (siempre) ────────────────────────────────────
+  const head = [
+    `# CODEMAP — ${summary.projectName}`,
+    '',
+    `> ${analysis.analyzedAt.slice(0, 10)} · ${summary.totalFiles} archivos · ` +
+      `${summary.totalLoc.toLocaleString('es')} líneas · salud ${summary.health.score}/100 (${summary.health.grade})`,
+    '',
+    '## Resumen',
+    '',
+    `- Símbolos: ${summary.totalSymbols} · complejidad promedio: ${summary.avgComplexity}`,
+    `- Issues: ${summary.totalIssues} (${summary.issuesBySeverity.error} error, ${summary.issuesBySeverity.warning} warning)`,
+    `- Dependencias circulares: ${summary.circularDeps}`,
+    summary.stack.length ? `- Stack: ${summary.stack.join(', ')}` : '',
+  ]
+    .filter(Boolean)
+    .join('\n');
+  add(0, 'compact', head);
 
-  // ── Resumen ────────────────────────────────────────────────────────────
-  lines.push('## Resumen');
-  lines.push('');
-  lines.push(`- **Archivos:** ${summary.totalFiles}`);
-  lines.push(`- **Líneas de código:** ${summary.totalLoc.toLocaleString('es')}`);
-  lines.push(`- **Símbolos (funciones/clases):** ${summary.totalSymbols}`);
-  lines.push(`- **Complejidad promedio:** ${summary.avgComplexity}`);
-  lines.push(
-    `- **Issues:** ${summary.totalIssues} ` +
-      `(${summary.issuesBySeverity.error} error / ${summary.issuesBySeverity.warning} warning / ${summary.issuesBySeverity.info} info)`,
-  );
-  lines.push(`- **Dependencias circulares:** ${summary.circularDeps}`);
-  lines.push(`- **Salud:** ${summary.health.score}/100 (${summary.health.grade})`);
-  lines.push('');
-
-  if (summary.stack.length) {
-    lines.push(`**Stack detectado:** ${summary.stack.join(', ')}`);
-    lines.push('');
-  }
-
-  // ── Lenguajes ──────────────────────────────────────────────────────────
-  const langEntries = Object.entries(summary.filesByLanguage).sort((a, b) => b[1] - a[1]);
-  const maxLang = Math.max(...langEntries.map(([, n]) => n), 1);
-  lines.push('## Lenguajes');
-  lines.push('');
-  lines.push('```');
-  for (const [lang, n] of langEntries) {
-    lines.push(`${lang.padEnd(12)} ${bar(n, maxLang)} ${n}`);
-  }
-  lines.push('```');
-  lines.push('');
-
-  // ── Dominios ───────────────────────────────────────────────────────────
-  if (graph.domains.length > 1) {
-    lines.push('## Dominios (áreas del proyecto)');
-    lines.push('');
-    for (const d of [...graph.domains].sort((a, b) => b.files.length - a.files.length)) {
+  // ── 1. Dominios ────────────────────────────────────────────────────────
+  if (graph.domains.length > 0) {
+    const sorted = [...graph.domains].sort((a, b) => b.files.length - a.files.length);
+    const lines = ['## Dominios (áreas del proyecto)', ''];
+    const perDomain = detail === 'compact' ? 0 : detail === 'normal' ? 8 : 999;
+    for (const d of sorted) {
       lines.push(`### ${d.label} — ${d.files.length} archivo(s)`);
-      for (const f of d.files.slice(0, 12)) lines.push(`- \`${f}\``);
-      if (d.files.length > 12) lines.push(`- … +${d.files.length - 12} más`);
+      for (const f of d.files.slice(0, perDomain)) lines.push(`- \`${f}\``);
+      if (d.files.length > perDomain && perDomain > 0) {
+        lines.push(`- … +${d.files.length - perDomain} más`);
+      }
       lines.push('');
     }
+    add(1, 'compact', lines.join('\n'));
   }
 
-  // ── Puntos de entrada ──────────────────────────────────────────────────
-  if (summary.entryPoints.length) {
-    lines.push('## Puntos de entrada probables');
-    lines.push('');
-    for (const e of summary.entryPoints) lines.push(`- \`${e}\``);
-    lines.push('');
-  }
-
-  // ── Dependencias circulares ────────────────────────────────────────────
-  if (graph.cycles.length) {
-    lines.push('## ⚠️ Dependencias circulares');
-    lines.push('');
+  // ── 2. Dependencias circulares ─────────────────────────────────────────
+  if (graph.cycles.length > 0) {
+    const lines = ['## ⚠️ Dependencias circulares', ''];
     for (const cycle of graph.cycles) {
-      lines.push(`- ${cycle.map((f) => `\`${f}\``).join(' → ')} → (vuelve al inicio)`);
+      lines.push(`- ${cycle.map((f) => `\`${f}\``).join(' → ')} → (vuelve)`);
     }
-    lines.push('');
+    add(2, 'compact', lines.join('\n'));
   }
 
-  // ── Archivos más pesados ───────────────────────────────────────────────
-  const heaviest = [...files].sort((a, b) => b.metrics.loc - a.metrics.loc).slice(0, 10);
-  lines.push('## Archivos más grandes');
-  lines.push('');
-  lines.push('| Archivo | Líneas | Complejidad | Issues |');
-  lines.push('|---|--:|--:|--:|');
-  for (const f of heaviest) {
-    lines.push(`| \`${f.path}\` | ${f.metrics.loc} | ${f.metrics.complexity} | ${f.issues.length} |`);
-  }
-  lines.push('');
-
-  // ── Issues destacados ──────────────────────────────────────────────────
-  const filesWithErrors = files
-    .filter((f) => f.issues.some((i) => i.severity === 'error'))
-    .slice(0, 10);
-  if (filesWithErrors.length) {
-    lines.push('## Issues graves');
-    lines.push('');
-    for (const f of filesWithErrors) {
-      lines.push(`- \`${f.path}\``);
-      for (const issue of f.issues.filter((i) => i.severity === 'error').slice(0, 5)) {
-        lines.push(`  - línea ${issue.line}: ${issue.message} — \`${issue.snippet}\``);
-      }
-    }
-    lines.push('');
+  // ── 3. Puntos de entrada ───────────────────────────────────────────────
+  if (summary.entryPoints.length > 0) {
+    add(
+      3,
+      'compact',
+      ['## Puntos de entrada probables', '', ...summary.entryPoints.map((e) => `- \`${e}\``)].join('\n'),
+    );
   }
 
-  // ── Mapa de dependencias internas ──────────────────────────────────────
-  const importEdges = graph.edges.filter((e) => e.type === 'imports' && !e.target.startsWith('ext:'));
-  if (importEdges.length) {
-    lines.push('## Dependencias internas (quién importa a quién)');
-    lines.push('');
-    lines.push('```');
+  // ── 4. Lenguajes ───────────────────────────────────────────────────────
+  const langEntries = Object.entries(summary.filesByLanguage).sort((a, b) => b[1] - a[1]);
+  if (langEntries.length > 0) {
+    const maxLang = Math.max(...langEntries.map(([, n]) => n), 1);
+    add(
+      4,
+      'normal',
+      [
+        '## Lenguajes',
+        '',
+        '```',
+        ...langEntries.map(([lang, n]) => `${lang.padEnd(12)} ${bar(n, maxLang)} ${n}`),
+        '```',
+      ].join('\n'),
+    );
+  }
+
+  // ── 5. Dependencias internas ───────────────────────────────────────────
+  const internal = graph.edges.filter(
+    (e) => e.type === 'imports' && !e.target.startsWith('ext:'),
+  );
+  if (internal.length > 0) {
     const bySource = new Map<string, string[]>();
-    for (const e of importEdges) {
+    for (const e of internal) {
       if (!bySource.has(e.source)) bySource.set(e.source, []);
       bySource.get(e.source)!.push(e.target + (e.circular ? '  (circular)' : ''));
     }
+    const lines = ['## Dependencias internas (quién importa a quién)', '', '```'];
     for (const [src, targets] of [...bySource].sort()) {
       lines.push(src);
       for (const t of targets) lines.push(`  → ${t}`);
     }
     lines.push('```');
-    lines.push('');
+    add(5, 'normal', lines.join('\n'));
   }
 
-  lines.push('---');
-  lines.push('_Este archivo es contexto para una IA. Pegalo al inicio de la conversación._');
-  lines.push('');
+  // ── 6. Archivos más grandes ────────────────────────────────────────────
+  const heaviest = [...files].sort((a, b) => b.metrics.loc - a.metrics.loc).slice(0, 10);
+  add(
+    6,
+    'normal',
+    [
+      '## Archivos más grandes',
+      '',
+      '| Archivo | Líneas | Complejidad | Issues |',
+      '|---|--:|--:|--:|',
+      ...heaviest.map(
+        (f) => `| \`${f.path}\` | ${f.metrics.loc} | ${f.metrics.complexity} | ${f.issues.length} |`,
+      ),
+    ].join('\n'),
+  );
 
-  return lines.join('\n');
+  // ── 7. Issues graves ───────────────────────────────────────────────────
+  const errorFiles = files.filter((f) => f.issues.some((i) => i.severity === 'error'));
+  if (errorFiles.length > 0) {
+    const lines = ['## Issues graves', ''];
+    for (const f of errorFiles.slice(0, 10)) {
+      lines.push(`- \`${f.path}\``);
+      for (const issue of f.issues.filter((i) => i.severity === 'error').slice(0, 5)) {
+        lines.push(`  - línea ${issue.line}: ${issue.message}`);
+      }
+    }
+    add(7, 'normal', lines.join('\n'));
+  }
+
+  // ── 8. Símbolos por archivo (solo 'full') ──────────────────────────────
+  const withSymbols = files.filter((f) => f.symbols.length > 0);
+  if (withSymbols.length > 0) {
+    const lines = ['## Símbolos por archivo', ''];
+    for (const f of withSymbols) {
+      lines.push(`### \`${f.path}\``);
+      for (const s of f.symbols) {
+        lines.push(`- ${s.kind} \`${s.name}\`${s.exported ? ' (export)' : ''}${s.async ? ' async' : ''}`);
+      }
+      lines.push('');
+    }
+    add(8, 'full', lines.join('\n'));
+  }
+
+  // ── 9. Todos los issues (solo 'full') ──────────────────────────────────
+  const anyIssues = files.filter((f) => f.issues.length > 0);
+  if (anyIssues.length > 0) {
+    const lines = ['## Todos los issues', ''];
+    for (const f of anyIssues) {
+      lines.push(`### \`${f.path}\``);
+      for (const i of f.issues) {
+        lines.push(`- [${i.severity}] línea ${i.line}: ${i.message}`);
+      }
+      lines.push('');
+    }
+    add(9, 'full', lines.join('\n'));
+  }
+
+  // ── Ensamblado ─────────────────────────────────────────────────────────
+  const wanted = sections
+    .filter((s) => DETAIL_ORDER[s.minDetail] <= DETAIL_ORDER[detail])
+    .sort((a, b) => a.rank - b.rank);
+
+  const footer = '\n---\n_Contexto para una IA. Pegalo al inicio de la conversación._\n';
+
+  const chosen: string[] = [];
+  let used = estTokens(footer);
+  for (const s of wanted) {
+    const cost = estTokens(s.text) + 2;
+    if (opts.maxTokens && used + cost > opts.maxTokens && chosen.length > 0) break;
+    chosen.push(s.text);
+    used += cost;
+  }
+
+  return chosen.join('\n\n') + footer;
 }

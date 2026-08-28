@@ -34,6 +34,9 @@ Opciones:
 |---|---|
 | `-o, --out <dir>` | Cambiar la carpeta de salida |
 | `--no-json` / `--no-codemap` | No escribir esos archivos |
+| `--detail <nivel>` | Nivel del CODEMAP: `compact` (~200 tok), `normal` (default), `full` |
+| `--max-tokens <n>` | Recortar el CODEMAP para entrar en ~n tokens |
+| `--graph-full` | `graph.json` completo (con símbolos y llamadas); por defecto es "slim" |
 | `--stdout` | Imprimir el JSON completo por stdout (no escribe archivos) |
 | `--fail-on-cycles` | Exit code 1 si hay dependencias circulares |
 | `--fail-on-error` | Exit code 1 si hay issues de severidad "error" |

@@ -4,13 +4,16 @@ Este documento explica qué cambió al pasar de la web-only con parsing por rege
 (v2) al monorepo con motor tree-sitter (v3). Es una migración **en curso**: la
 Fase 1 está hecha, la interfaz web se migra en la Fase 2.
 
-## Qué se hizo (Fase 1)
+## Qué se hizo (Fases 1–3)
 
 - El repo pasó a ser un **monorepo con npm workspaces**.
-- Se creó **`packages/core`**: el motor de análisis, reescrito desde cero con
-  tree-sitter (AST real) en vez de expresiones regulares.
-- Se creó **`packages/cli`**: el comando `codegraph`.
-- Se agregó **documentación** en `docs/`.
+- **`packages/core`**: motor de análisis reescrito con tree-sitter (AST real).
+  Expone además `@codegraph/core/node` (utilidades de disco) y
+  `core/src/queries.ts` (consultas puras sobre el grafo).
+- **`packages/cli`**: el comando `codegraph` (`analyze`, `serve`).
+- **`packages/web`**: la interfaz nueva (React + d3-force).
+- **`packages/mcp`**: servidor MCP para Claude Code.
+- **documentación** en `docs/` (6 documentos).
 
 ## Qué se movió / reemplazó
 

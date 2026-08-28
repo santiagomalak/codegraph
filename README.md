@@ -50,11 +50,18 @@ más lenguajes, sin cambiar la arquitectura.)
 packages/
 ├── core/    @codegraph/core — el motor (Node + navegador, sin I/O)
 ├── cli/     @codegraph/cli  — el comando `codegraph`
+├── mcp/     @codegraph/mcp  — servidor MCP para Claude Code
 └── web/     @codegraph/web  — la interfaz (React + d3-force)
 docs/        documentación explicada, en castellano
 src/ public/ ⚠️ web vieja (v2), reemplazada por packages/web — se borrará
 landing/     landing page (Astro)
 ```
+
+## Para la IA
+
+Este repo trae un `.mcp.json`: después de `npm run build`, Claude Code puede
+analizar el propio proyecto vía el servidor MCP (`overview`, `describe_file`,
+`impact_of`, `find_symbol`…). Ver [docs/06](./docs/06-servidor-mcp.md).
 
 ## Documentación
 
@@ -65,6 +72,7 @@ landing/     landing page (Astro)
 | [docs/03 · El motor](./docs/03-el-motor.md) | Cómo se analiza un proyecto, paso a paso |
 | [docs/04 · El grafo](./docs/04-el-grafo.md) | Nodos, aristas, dominios, ciclos |
 | [docs/05 · La interfaz](./docs/05-la-interfaz.md) | Cómo ver el grafo en el navegador |
+| [docs/06 · El servidor MCP](./docs/06-servidor-mcp.md) | Cómo Claude consulta el grafo |
 
 ## Scripts
 

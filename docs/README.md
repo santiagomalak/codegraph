@@ -12,6 +12,7 @@ y pensado para que lo entiendas sin ser experto en compiladores.
 | [03 · El motor de análisis](./03-el-motor.md) | Cómo `@codegraph/core` convierte archivos en datos, paso a paso |
 | [04 · El grafo de conocimiento](./04-el-grafo.md) | Qué son los nodos, aristas, dominios y ciclos |
 | [05 · La interfaz web](./05-la-interfaz.md) | Cómo ver el grafo en el navegador |
+| [06 · El servidor MCP](./06-servidor-mcp.md) | Cómo Claude consulta el grafo sin cargarlo entero |
 
 Ver también:
 - [`MIGRATION.md`](../MIGRATION.md) — qué cambió respecto de la versión anterior (v2)
@@ -38,13 +39,17 @@ Ver también:
 - Sidebar con resumen, Inspector por archivo, Toolbar con búsqueda y capas.
 - `codegraph serve` sirve la UI y expone `/api/analysis`.
 
-🚧 **Fase 2 — Interfaz (sigue)**
-- Capa de símbolos (call graph) conmutable en la UI.
+✅ **Fase 3 — IA (v1)**
+- `packages/mcp`: servidor MCP con 11 herramientas (`overview`, `describe_file`,
+  `impact_of`, `find_symbol`…) para que Claude consulte el grafo sin cargarlo.
+- CODEMAP con niveles (`compact`/`normal`/`full`) y presupuesto de tokens.
+- `graph.json` slim por defecto (−72% de tamaño).
+- Funciones de consulta puras en `core/src/queries.ts`.
+
+🚧 **Sigue**
+- Capa de símbolos (call graph) conmutable en la UI web.
 - Render en canvas/WebGL para proyectos grandes.
 - `codegraph watch`: re-analizar al guardar archivos.
-
-🔜 **Después**
-- `packages/mcp` — servidor MCP para que Claude Code consulte el grafo.
 - Chat con el proyecto (RAG sobre el grafo).
 - Extensión de VS Code.
 - Capa git (churn, hotspots, timeline).

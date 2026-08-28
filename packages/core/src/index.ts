@@ -19,6 +19,9 @@
 
 export { analyzeProject } from './analyze.js';
 export { toCodemapMarkdown } from './exporters/codemap.js';
+export type { CodemapDetail, CodemapOptions } from './exporters/codemap.js';
+export { toGraphJson } from './exporters/graph-json.js';
+export * from './queries.js';
 
 // Piezas reutilizables (por si un consumidor quiere usarlas sueltas)
 export { parseFile } from './parsing/index.js';

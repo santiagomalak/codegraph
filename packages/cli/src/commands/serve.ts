@@ -16,7 +16,7 @@ import { extname, join, resolve } from 'node:path';
 import { fileURLToPath } from 'node:url';
 import pc from 'picocolors';
 import { analyzeProject } from '@codegraph/core';
-import { discoverFiles } from '../discover.js';
+import { discoverFiles } from '@codegraph/core/node';
 
 const MIME: Record<string, string> = {
   '.html': 'text/html; charset=utf-8',

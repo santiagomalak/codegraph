@@ -9,6 +9,10 @@
     ".": {
       "types": "./dist/index.d.ts",
       "import": "./dist/index.js"
+    },
+    "./node": {
+      "types": "./dist/node-fs.d.ts",
+      "import": "./dist/node-fs.js"
     }
   },
   "files": ["dist", "wasm", "README.md"],

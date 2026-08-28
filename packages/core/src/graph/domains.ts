@@ -59,20 +59,44 @@ function mostFrequentFirstSegment(paths: string[]): string {
 }
 
 /** Segmentos de carpeta demasiado genéricos para nombrar un dominio. */
-const GENERIC_SEGMENTS = new Set(['src', 'lib', 'app', 'dist', 'build', 'source', 'packages']);
+const GENERIC_SEGMENTS = new Set([
+  'src', 'lib', 'app', 'dist', 'build', 'source', 'packages', 'test', 'tests', '__tests__',
+]);
+
+function pickTop(m: Map<string, number>): string {
+  let best = '';
+  let bestN = 0;
+  for (const [seg, n] of m) {
+    if (n > bestN) {
+      best = seg;
+      bestN = n;
+    }
+  }
+  return best;
+}
 
 function labelFor(files: string[]): string {
-  const dir = commonDir(files);
-  if (dir) {
-    // Elegir el último segmento que NO sea genérico ("web/src" → "web").
-    const parts = dir.split('/');
-    for (let i = parts.length - 1; i >= 0; i--) {
-      if (!GENERIC_SEGMENTS.has(parts[i]!)) return parts[i]!;
+  // La carpeta-madre inmediata (no genérica) de cada archivo es la mejor señal
+  // de "de qué trata": "core/src/parsing/x.ts" → "parsing".
+  const parentCounts = new Map<string, number>();
+  const anyCounts = new Map<string, number>();
+  for (const f of files) {
+    const segs = f.split('/').slice(0, -1); // sin el nombre de archivo
+    const parent = [...segs].reverse().find((s) => !GENERIC_SEGMENTS.has(s));
+    if (parent) parentCounts.set(parent, (parentCounts.get(parent) ?? 0) + 1);
+    for (const s of segs) {
+      if (!GENERIC_SEGMENTS.has(s)) anyCounts.set(s, (anyCounts.get(s) ?? 0) + 1);
     }
-    return parts[parts.length - 1]!;
   }
+
+  const topParent = pickTop(parentCounts);
+  if (topParent && (parentCounts.get(topParent) ?? 0) >= files.length * 0.4) return topParent;
+
+  const topAny = pickTop(anyCounts);
+  if (topAny) return topAny;
+
   const seg = mostFrequentFirstSegment(files);
-  return seg && seg.includes('.') ? 'raíz' : seg || 'raíz';
+  return !seg || seg.includes('.') ? 'raíz' : seg;
 }
 
 function domainsByDirectory(files: string[]): DomainInfo[] {

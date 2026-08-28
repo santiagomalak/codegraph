@@ -11,14 +11,23 @@
 import { mkdir, stat, writeFile } from 'node:fs/promises';
 import { basename, isAbsolute, join, resolve } from 'node:path';
 import pc from 'picocolors';
-import { analyzeProject, toCodemapMarkdown, type ProjectAnalysis } from '@codegraph/core';
-import { discoverFiles } from '../discover.js';
+import {
+  analyzeProject,
+  toCodemapMarkdown,
+  toGraphJson,
+  type CodemapDetail,
+  type ProjectAnalysis,
+} from '@codegraph/core';
+import { discoverFiles } from '@codegraph/core/node';
 
 export interface AnalyzeFlags {
   out?: string;
   json?: boolean;
   codemap?: boolean;
   stdout?: boolean;
+  detail?: string;
+  maxTokens?: string;
+  graphFull?: boolean;
   failOnCycles?: boolean;
   failOnError?: boolean;
   maxComplexity?: string;
@@ -67,7 +76,11 @@ export async function runAnalyze(target: string, flags: AnalyzeFlags): Promise<v
   const rootDir = resolve(process.cwd(), target || '.');
   const projectName = basename(rootDir);
 
-  console.log(pc.dim(`Analizando ${rootDir} …`));
+  // Con --stdout, stdout es SOLO el JSON: todo lo informativo va a stderr.
+  const info = flags.stdout ? console.error : console.log;
+  const progressOut = flags.stdout ? process.stderr : process.stdout;
+
+  info(pc.dim(`Analizando ${rootDir} …`));
 
   const { files, skippedLarge } = await discoverFiles(rootDir);
   if (files.length === 0) {
@@ -82,14 +95,14 @@ export async function runAnalyze(target: string, flags: AnalyzeFlags): Promise<v
       const pct = Math.floor((done / total) * 100);
       if (pct !== lastPct && pct % 10 === 0) {
         lastPct = pct;
-        process.stdout.write(pc.dim(`\r  parseando… ${pct}%`));
+        progressOut.write(pc.dim(`\r  parseando… ${pct}%`));
       }
     },
   });
-  process.stdout.write('\r' + ' '.repeat(30) + '\r');
+  progressOut.write('\r' + ' '.repeat(30) + '\r');
 
   if (skippedLarge.length) {
-    console.log(pc.dim(`  (${skippedLarge.length} archivo(s) grandes salteados)`));
+    info(pc.dim(`  (${skippedLarge.length} archivo(s) grandes salteados)`));
   }
 
   // ── Salida ────────────────────────────────────────────────────────────
@@ -106,14 +119,22 @@ export async function runAnalyze(target: string, flags: AnalyzeFlags): Promise<v
     const written: string[] = [];
     const wantJson = flags.json ?? true;
     const wantCodemap = flags.codemap ?? true;
+    const detail = (flags.detail as CodemapDetail) ?? 'normal';
+    const maxTokens = flags.maxTokens ? Number(flags.maxTokens) : undefined;
 
     if (wantJson) {
       await writeFile(join(outDir, 'analysis.json'), JSON.stringify(analysis, null, 2));
-      await writeFile(join(outDir, 'graph.json'), JSON.stringify(analysis.graph, null, 2));
+      await writeFile(
+        join(outDir, 'graph.json'),
+        toGraphJson(analysis.graph, { full: flags.graphFull }),
+      );
       written.push('analysis.json', 'graph.json');
     }
     if (wantCodemap) {
-      await writeFile(join(outDir, 'CODEMAP.md'), toCodemapMarkdown(analysis));
+      await writeFile(
+        join(outDir, 'CODEMAP.md'),
+        toCodemapMarkdown(analysis, { detail, maxTokens }),
+      );
       written.push('CODEMAP.md');
     }
 

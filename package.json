@@ -8,7 +8,8 @@
     "packages/*"
   ],
   "scripts": {
-    "build": "npm run build -w @codegraph/core && npm run build -w @codegraph/cli && npm run build -w @codegraph/web",
+    "build": "npm run build -w @codegraph/core && npm run build -w @codegraph/cli && npm run build -w @codegraph/mcp && npm run build -w @codegraph/web",
+    "mcp": "node packages/mcp/dist/index.js",
     "dev:web": "npm run dev -w @codegraph/web",
     "test": "npm run test --workspaces --if-present",
     "typecheck": "npm run typecheck --workspaces --if-present",

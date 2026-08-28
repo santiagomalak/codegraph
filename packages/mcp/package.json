@@ -1,0 +1,25 @@
+{
+  "name": "@codegraph/mcp",
+  "version": "3.0.0",
+  "description": "Servidor MCP de Code Graph Unified: deja que Claude consulte el grafo del proyecto sin cargarlo entero.",
+  "type": "module",
+  "bin": {
+    "codegraph-mcp": "./dist/index.js"
+  },
+  "files": ["dist", "README.md"],
+  "scripts": {
+    "build": "tsc -p tsconfig.json",
+    "dev": "tsc -p tsconfig.json --watch",
+    "typecheck": "tsc -p tsconfig.json --noEmit"
+  },
+  "dependencies": {
+    "@codegraph/core": "3.0.0",
+    "@modelcontextprotocol/sdk": "^1.20.0",
+    "zod": "^3.25.0"
+  },
+  "devDependencies": {
+    "@types/node": "^20.11.0",
+    "typescript": "^5.3.3"
+  },
+  "license": "MIT"
+}

@@ -1,0 +1,9 @@
+{
+  "mcpServers": {
+    "codegraph": {
+      "command": "node",
+      "args": ["packages/mcp/dist/index.js", "--project", "."],
+      "comment": "Requiere `npm run build` primero. Cuando @codegraph/mcp se publique en npm, cambiar a: command 'npx', args ['-y', '@codegraph/mcp', '--project', '.']"
+    }
+  }
+}
