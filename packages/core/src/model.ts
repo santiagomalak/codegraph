@@ -49,6 +49,46 @@ export interface ImportRef {
   line: number;
 }
 
+/**
+ * Configuración para resolver imports que no son rutas relativas: alias de
+ * `tsconfig`, `baseUrl` y paquetes de un monorepo. La arma `readProjectConfig`
+ * (en `@codegraph/core/node`) leyendo `tsconfig.json` / `package.json`.
+ *
+ * Sin esto, un import como `@/components/Button` o `@miapp/core` se considera
+ * "externo" aunque en realidad apunte a un archivo del proyecto.
+ */
+export interface ResolverConfig {
+  /**
+   * Carpeta base para imports "sin punto" (de `compilerOptions.baseUrl`).
+   * Relativa a la raíz del proyecto, con "/" como separador.
+   */
+  baseUrl?: string;
+  /**
+   * Alias de `compilerOptions.paths`. Clave y valores usan `*` como comodín:
+   * `{ "@/*": ["src/*"], "@lib": ["src/lib/index.ts"] }`.
+   * Los valores son relativos a `baseUrl` (o a la raíz si no hay `baseUrl`).
+   */
+  paths?: Record<string, string[]>;
+  /**
+   * Paquetes de un monorepo (npm workspaces): nombre del paquete → dónde vive.
+   * Un import de `<nombre>` o `<nombre>/sub` se resuelve dentro de esa carpeta.
+   */
+  workspaces?: Record<string, WorkspacePackage>;
+}
+
+export interface WorkspacePackage {
+  /** Carpeta del paquete, relativa a la raíz del proyecto, POSIX. */
+  dir: string;
+  /** Archivo de entrada (de `main` / `module` / `exports`), si se pudo determinar. */
+  entry?: string;
+  /**
+   * Subpaths declarados en `exports` del package.json: `"node"` → `"dist/node-fs.js"`
+   * (relativo a `dir`). El resolver los mapea de vuelta a la fuente (`dist`→`src`,
+   * `.js`→`.ts`) para conectar imports como `@miapp/core/node`.
+   */
+  exports?: Record<string, string>;
+}
+
 /** Una función, clase o método declarado en un archivo. */
 export interface SymbolDef {
   /** Id estable y único: `${filePath}#${name}` (o `#${name}@${line}` si hay choque). */
@@ -304,4 +344,9 @@ export interface AnalyzeOptions {
   git?: Record<string, GitStats>;
   /** Datos del timeline (los devuelve `readGitHistory` junto con `git`). */
   timeline?: GitTimeline;
+  /**
+   * Cómo resolver imports que no son rutas relativas (alias de tsconfig,
+   * paquetes de un monorepo). La arma `readProjectConfig` de `@codegraph/core/node`.
+   */
+  resolve?: ResolverConfig;
 }

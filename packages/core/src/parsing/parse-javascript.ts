@@ -52,8 +52,9 @@ function hasJsDoc(node: SyntaxNode): boolean {
 function parseImports(root: SyntaxNode): ImportRef[] {
   const imports: ImportRef[] = [];
 
-  findAll(root, new Set(['import_statement', 'call_expression'])).forEach((node) => {
-    if (node.type === 'import_statement') {
+  findAll(root, new Set(['import_statement', 'export_statement', 'call_expression'])).forEach((node) => {
+    // import x from './y'  /  export { x } from './y'  /  export * from './y'
+    if (node.type === 'import_statement' || node.type === 'export_statement') {
       const src = node.childForFieldName('source');
       if (src) {
         const spec = stripQuotes(src.text);

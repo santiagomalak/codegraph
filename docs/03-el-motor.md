@@ -77,6 +77,13 @@ Ver [`04-el-grafo.md`](./04-el-grafo.md). En resumen:
 1. **Resolver imports**: `"./utils"` en `src/app.ts` → `src/utils.ts`
    (`resolve-imports.ts`). Los que resuelven pasan a ser dependencias internas;
    el resto quedan como externas (`react`, `os`, …).
+   El resolver también entiende imports que **no** son rutas relativas cuando el
+   CLI le pasa la config del proyecto (`readProjectConfig`, ver más abajo):
+   - **alias de tsconfig**: `@/components/Button` → `src/components/Button.tsx`
+   - **`baseUrl`**: `components/Button` → `src/components/Button.tsx`
+   - **paquetes de un monorepo**: `@miapp/core` → `packages/core/src/index.ts`
+     (y subpaths como `@miapp/core/node` vía el campo `exports`)
+   - **re-exports**: `export { x } from './y'` cuenta como dependencia igual que un import.
 2. **Nodos**: uno por archivo, uno por símbolo, uno por dominio, uno por paquete externo.
 3. **Aristas**: `contains` (archivo→símbolo), `imports` (archivo→archivo/externo),
    `calls` (símbolo→símbolo), `member-of` (archivo→dominio).
@@ -96,6 +103,20 @@ Ver [`04-el-grafo.md`](./04-el-grafo.md). En resumen:
 - **Health score** (0–100): arranca en 100 y resta por dependencias circulares,
   complejidad alta, issues graves, archivos gigantes y poca documentación. Cada
   resta queda registrada en `health.factors` con su motivo.
+
+## La config del proyecto (`readProjectConfig`)
+
+Vive en `@codegraph/core/node` (toca disco, solo Node). Antes de analizar, el CLI
+la llama y le pasa el resultado a `analyzeProject({ resolve })`. Lee:
+
+- **`tsconfig.json` / `jsconfig.json`**: `compilerOptions.baseUrl` y `paths`
+  (sigue la cadena de `extends` si el `extends` es una ruta relativa). Tolera
+  comentarios y comas colgantes (formato "JSONC").
+- **`package.json` raíz**: el campo `workspaces`. Por cada paquete lee su `name`,
+  su archivo de entrada (`exports["."]` / `module` / `main`) y sus subpaths de
+  `exports`.
+
+Si no hay nada de esto, devuelve `{}` y el análisis sigue igual.
 
 ## Cómo probarlo suelto
 

@@ -9,9 +9,9 @@
 
 import { spawn } from 'node:child_process';
 import { readdir, readFile, stat } from 'node:fs/promises';
-import { join, relative, sep } from 'node:path';
+import { dirname, join, relative, sep } from 'node:path';
 import { EXTENSION_LANGUAGE, IGNORE_DIRS } from './languages.js';
-import type { GitStats, GitTimeline } from './model.js';
+import type { GitStats, GitTimeline, ResolverConfig, WorkspacePackage } from './model.js';
 
 const MAX_FILE_BYTES = 1_500_000;
 const KNOWN_EXTENSIONS = new Set(Object.keys(EXTENSION_LANGUAGE));
@@ -255,4 +255,159 @@ function buildTimeline(
     fileFirstBucket,
     fileActivity,
   };
+}
+
+// ────────────────────────────────────────────────────────────────────────────
+// CONFIG DEL PROYECTO (para resolver imports que no son rutas relativas)
+// ────────────────────────────────────────────────────────────────────────────
+
+/** JSON tolerante: saca comentarios `//` y de bloque, y comas colgantes. */
+function parseJsonc<T = unknown>(text: string): T | null {
+  const noComments = text
+    // Preserva strings (primera alternativa); borra los dos tipos de comentario.
+    .replace(/"(?:\\.|[^"\\])*"|\/\/.*$|\/\*[\s\S]*?\*\//gm, (m) => (m[0] === '"' ? m : ''))
+    .replace(/,(\s*[}\]])/g, '$1');
+  try {
+    return JSON.parse(noComments) as T;
+  } catch {
+    return null;
+  }
+}
+
+async function readJsonc<T = unknown>(file: string): Promise<T | null> {
+  try {
+    return parseJsonc<T>(await readFile(file, 'utf8'));
+  } catch {
+    return null;
+  }
+}
+
+interface TsConfig {
+  extends?: string;
+  compilerOptions?: { baseUrl?: string; paths?: Record<string, string[]> };
+}
+
+/**
+ * Junta `compilerOptions.baseUrl` y `.paths` de un tsconfig/jsconfig, siguiendo
+ * la cadena de `extends` (hasta 4 niveles, para no colgarse con ciclos raros).
+ */
+async function readTsConfigChain(file: string, depth = 0): Promise<TsConfig['compilerOptions']> {
+  if (depth > 4) return {};
+  const cfg = await readJsonc<TsConfig>(file);
+  if (!cfg) return {};
+
+  let inherited: TsConfig['compilerOptions'] = {};
+  if (cfg.extends) {
+    const ext = cfg.extends.startsWith('.')
+      ? join(dirname(file), cfg.extends)
+      : null; // "extends" de un paquete npm: no lo seguimos
+    if (ext) {
+      inherited = await readTsConfigChain(ext.endsWith('.json') ? ext : ext + '.json', depth + 1);
+    }
+  }
+  return { ...inherited, ...cfg.compilerOptions };
+}
+
+interface PackageJson {
+  name?: string;
+  main?: string;
+  module?: string;
+  exports?: unknown;
+  workspaces?: string[] | { packages?: string[] };
+}
+
+/** Resuelve una entrada de `exports` (string o `{import,default,...}`) a un path. */
+function pickExport(v: unknown): string | undefined {
+  if (typeof v === 'string') return v;
+  if (v && typeof v === 'object') {
+    const o = v as Record<string, unknown>;
+    return pickExport(o['import'] ?? o['module'] ?? o['default'] ?? o['require'] ?? o['types']);
+  }
+  return undefined;
+}
+
+/** Saca el archivo de entrada de un package.json (`exports["."]` → `module` → `main`). */
+function entryOf(pkg: PackageJson): string | undefined {
+  const exp = pkg.exports;
+  if (exp && typeof exp === 'object') {
+    const dot = (exp as Record<string, unknown>)['.'] ?? exp;
+    const e = pickExport(dot);
+    if (e) return e;
+  }
+  return pkg.module ?? pkg.main;
+}
+
+/** Subpaths de `exports` (sin el "."): `{ "node": "dist/node-fs.js" }`. */
+function subExportsOf(pkg: PackageJson): Record<string, string> | undefined {
+  const exp = pkg.exports;
+  if (!exp || typeof exp !== 'object') return undefined;
+  const out: Record<string, string> = {};
+  for (const [key, val] of Object.entries(exp as Record<string, unknown>)) {
+    if (!key.startsWith('./') || key === '.') continue;
+    const target = pickExport(val);
+    if (target) out[key.slice(2)] = target.replace(/^\.\//, '');
+  }
+  return Object.keys(out).length ? out : undefined;
+}
+
+/**
+ * Lee la config del proyecto que hace falta para resolver imports "sin punto":
+ * los alias de tsconfig y los paquetes de un monorepo (npm workspaces).
+ *
+ * Si no hay tsconfig ni workspaces, devuelve `{}` y todo sigue igual.
+ */
+export async function readProjectConfig(rootDir: string): Promise<ResolverConfig> {
+  const config: ResolverConfig = {};
+
+  // ── tsconfig / jsconfig (alias + baseUrl) ──────────────────────────────
+  for (const name of ['tsconfig.json', 'jsconfig.json']) {
+    const co = await readTsConfigChain(join(rootDir, name));
+    if (co && (co.baseUrl || co.paths)) {
+      if (co.baseUrl) config.baseUrl = toPosix(co.baseUrl).replace(/^\.\//, '').replace(/\/$/, '');
+      if (co.paths) config.paths = co.paths;
+      break;
+    }
+  }
+
+  // ── npm workspaces (paquetes del monorepo) ─────────────────────────────
+  const rootPkg = await readJsonc<PackageJson>(join(rootDir, 'package.json'));
+  const wsField = rootPkg?.workspaces;
+  const globs = Array.isArray(wsField) ? wsField : (wsField?.packages ?? []);
+  if (globs.length) {
+    const workspaces: Record<string, WorkspacePackage> = {};
+    for (const glob of globs) {
+      // Solo soportamos "carpeta/*" y "carpeta" (los globs más comunes).
+      const dirs = glob.endsWith('/*')
+        ? await subdirs(join(rootDir, glob.slice(0, -2)))
+        : [join(rootDir, glob)];
+      for (const abs of dirs) {
+        const pkg = await readJsonc<PackageJson>(join(abs, 'package.json'));
+        if (!pkg?.name) continue;
+        const dir = toPosix(relative(rootDir, abs));
+        const rawEntry = entryOf(pkg);
+        const entry = rawEntry
+          ? toPosix(join(dir, rawEntry.replace(/^\.\//, '')))
+          : undefined;
+        const exports = subExportsOf(pkg);
+        workspaces[pkg.name] = {
+          dir,
+          ...(entry ? { entry } : {}),
+          ...(exports ? { exports } : {}),
+        };
+      }
+    }
+    if (Object.keys(workspaces).length) config.workspaces = workspaces;
+  }
+
+  return config;
+}
+
+/** Lista las subcarpetas directas de `dir` (para expandir globs "x/*"). */
+async function subdirs(dir: string): Promise<string[]> {
+  try {
+    const entries = await readdir(dir, { withFileTypes: true });
+    return entries.filter((e) => e.isDirectory()).map((e) => join(dir, e.name));
+  } catch {
+    return [];
+  }
 }

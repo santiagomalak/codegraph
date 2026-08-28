@@ -8,7 +8,7 @@
 
 import { basename } from 'node:path';
 import { analyzeProject, type ProjectAnalysis } from '@codegraph/core';
-import { discoverFiles, readGitHistory } from '@codegraph/core/node';
+import { discoverFiles, readGitHistory, readProjectConfig } from '@codegraph/core/node';
 
 export class Project {
   private analysis: ProjectAnalysis | null = null;
@@ -32,6 +32,7 @@ export class Project {
           projectName: basename(this.rootDir),
           git: Object.keys(git).length > 0 ? git : undefined,
           timeline: timeline ?? undefined,
+          resolve: await readProjectConfig(this.rootDir),
         });
         this.analysis = result;
         return result;

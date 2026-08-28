@@ -16,6 +16,7 @@ import type {
   GraphNode,
   KnowledgeGraph,
   ParsedFile,
+  ResolverConfig,
 } from '../model.js';
 import { LANGUAGE_COLOR } from '../languages.js';
 import { ImportResolver } from './resolve-imports.js';
@@ -40,10 +41,10 @@ function riskOf(file: ParsedFile): number {
   return Math.round((0.55 * complexityNorm + 0.45 * issuesNorm) * 100) / 100;
 }
 
-export function buildGraph(files: ParsedFile[]): KnowledgeGraph {
+export function buildGraph(files: ParsedFile[], resolveConfig?: ResolverConfig): KnowledgeGraph {
   const paths = files.map((f) => f.path);
   const pathSet = new Set(paths);
-  const resolver = new ImportResolver(pathSet);
+  const resolver = new ImportResolver(pathSet, resolveConfig);
 
   const nodes: GraphNode[] = [];
   const edges: GraphEdge[] = [];

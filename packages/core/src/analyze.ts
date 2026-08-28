@@ -50,7 +50,7 @@ export async function analyzeProject(
 
   if (options.git) attachGitStats(files, options.git);
 
-  const graph = buildGraph(files);
+  const graph = buildGraph(files, options.resolve);
   if (options.git) applyGitToGraph(graph, files);
 
   const summary = buildSummary(files, graph, projectName);

@@ -89,6 +89,69 @@ describe('ImportResolver', () => {
   });
 });
 
+describe('ImportResolver con config (alias / baseUrl / workspaces)', () => {
+  const files = new Set([
+    'src/app.ts',
+    'src/components/Button.tsx',
+    'src/lib/index.ts',
+    'packages/core/src/index.ts',
+    'packages/core/src/model.ts',
+  ]);
+
+  it('resuelve un alias con comodín (@/*)', () => {
+    const r = new ImportResolver(files, { paths: { '@/*': ['src/*'] } });
+    expect(r.resolve('src/app.ts', { specifier: '@/components/Button', kind: 'external', line: 1 })).toBe(
+      'src/components/Button.tsx',
+    );
+  });
+
+  it('resuelve un alias exacto a un archivo concreto', () => {
+    const r = new ImportResolver(files, { paths: { '@lib': ['src/lib/index.ts'] } });
+    expect(r.resolve('src/app.ts', { specifier: '@lib', kind: 'external', line: 1 })).toBe('src/lib/index.ts');
+  });
+
+  it('respeta baseUrl para imports sin punto', () => {
+    const r = new ImportResolver(files, { baseUrl: 'src' });
+    expect(r.resolve('src/app.ts', { specifier: 'components/Button', kind: 'external', line: 1 })).toBe(
+      'src/components/Button.tsx',
+    );
+  });
+
+  it('resuelve un paquete del monorepo por su nombre', () => {
+    const r = new ImportResolver(files, {
+      workspaces: { '@miapp/core': { dir: 'packages/core', entry: 'packages/core/src/index.ts' } },
+    });
+    expect(r.resolve('src/app.ts', { specifier: '@miapp/core', kind: 'external', line: 1 })).toBe(
+      'packages/core/src/index.ts',
+    );
+  });
+
+  it('resuelve un subpath dentro de un paquete del monorepo', () => {
+    const r = new ImportResolver(files, {
+      workspaces: { '@miapp/core': { dir: 'packages/core' } },
+    });
+    expect(r.resolve('src/app.ts', { specifier: '@miapp/core/model', kind: 'external', line: 1 })).toBe(
+      'packages/core/src/model.ts',
+    );
+  });
+
+  it('resuelve un subpath de exports (dist/x.js → src/x.ts)', () => {
+    const r = new ImportResolver(files, {
+      workspaces: {
+        '@miapp/core': { dir: 'packages/core', exports: { node: 'dist/model.js' } },
+      },
+    });
+    expect(r.resolve('src/app.ts', { specifier: '@miapp/core/node', kind: 'external', line: 1 })).toBe(
+      'packages/core/src/model.ts',
+    );
+  });
+
+  it('sin config, un alias sigue siendo externo', () => {
+    const r = new ImportResolver(files);
+    expect(r.resolve('src/app.ts', { specifier: '@/components/Button', kind: 'external', line: 1 })).toBeUndefined();
+  });
+});
+
 describe('detectDomains', () => {
   it('agrupa por carpeta cuando no hay imports internos', () => {
     const domains = detectDomains(['a/x.ts', 'a/y.ts', 'b/z.ts'], []);
