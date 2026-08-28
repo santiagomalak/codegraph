@@ -72,6 +72,15 @@ const RUST_UTIL = `pub fn shout(s: &str) -> String {
 }
 `;
 
+const RUST_IMPL = `pub struct App { count: u32 }
+impl App {
+    pub fn run(&self) -> u32 { self.count }
+}
+impl Clone for App {
+    fn clone(&self) -> Self { App { count: self.count } }
+}
+`;
+
 const JAVA_APP = `package com.example;
 
 import com.example.util.Greeter;
@@ -139,6 +148,35 @@ describe('Rust', () => {
 
     const resolvedTargets = main.imports.map((i) => i.resolved).filter(Boolean);
     expect(resolvedTargets).toContain('src/util.rs');
+  });
+
+  it('un bloque `impl` no crea un tipo nuevo: sus métodos van al struct', async () => {
+    const a = await analyzeProject([{ path: 'src/lib.rs', content: RUST_IMPL }], {
+      projectName: 'rust-impl',
+    });
+    const names = a.files[0]!.symbols.map((s) => `${s.kind} ${s.name}`);
+    expect(names).toEqual([
+      'class App',
+      'method App.run',
+      'method App.clone', // ← del `impl Clone for App`, atribuido a App (no a "Clone")
+    ]);
+  });
+});
+
+describe('Go — paquete raíz', () => {
+  it('resuelve un import al módulo raíz (archivos .go en la raíz)', async () => {
+    const a = await analyzeProject(
+      [
+        { path: 'main.go', content: 'package app\nfunc Run() {}\n' },
+        {
+          path: 'worker.go',
+          content: 'package app\n\nimport "github.com/x/app"\n\nfunc W() { app.Run() }\n',
+        },
+      ],
+      { projectName: 'go-root', resolve: { goModule: 'github.com/x/app' } },
+    );
+    const imp = a.files.find((f) => f.path === 'worker.go')!.imports[0]!;
+    expect(imp.resolved).toBe('main.go');
   });
 });
 

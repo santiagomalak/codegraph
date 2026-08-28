@@ -71,8 +71,10 @@ export function parseGeneric(root: SyntaxNode, path: string, spec: LanguageSpec)
   walk(root, (node) => {
     if (spec.containerNodes.has(node.type)) {
       if (spec.containerFilter && !spec.containerFilter(node)) return;
-      const cname = nameOf(node, spec.nameField);
-      symbols.push(makeSymbol(node, 'class', cname, spec.isExported(node, cname)));
+      const cname = spec.containerName ? spec.containerName(node) : nameOf(node, spec.nameField);
+      if (spec.containerIsSymbol ? spec.containerIsSymbol(node) : true) {
+        symbols.push(makeSymbol(node, 'class', cname, spec.isExported(node, cname)));
+      }
 
       const body = bodyOf(node);
       for (const member of body?.namedChildren ?? []) {

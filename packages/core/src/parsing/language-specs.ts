@@ -28,6 +28,13 @@ export interface LanguageSpec {
   containerNodes: ReadonlySet<string>;
   /** Filtro extra para contenedores (ej: en Go, solo struct/interface, no alias). */
   containerFilter?: (node: SyntaxNode) => boolean;
+  /** Nombre del contenedor, si no alcanza con el field `name` (ej: `impl Foo` de Rust). */
+  containerName?: (node: SyntaxNode) => string;
+  /**
+   * `false` = el contenedor NO genera un símbolo propio, solo aporta sus métodos
+   * a un tipo ya existente (ej: un bloque `impl` de Rust extiende un `struct`).
+   */
+  containerIsSymbol?: (node: SyntaxNode) => boolean;
   /** Nodos que declaran un método dentro de un contenedor. */
   methodNodes: ReadonlySet<string>;
   /** Field del que sacar el nombre (default: "name"). */
@@ -110,6 +117,16 @@ const GO: LanguageSpec = {
 const RUST: LanguageSpec = {
   functionNodes: new Set(['function_item']),
   containerNodes: new Set(['struct_item', 'enum_item', 'trait_item', 'impl_item', 'union_item']),
+  // Un `impl Foo` no es un tipo nuevo: aporta métodos al `struct Foo`.
+  containerIsSymbol: (node) => node.type !== 'impl_item',
+  containerName: (node) => {
+    if (node.type === 'impl_item') {
+      // `impl Foo` / `impl Trait for Foo` → el tipo implementado es el field `type`.
+      const t = node.childForFieldName('type');
+      return (t?.text ?? '(impl)').replace(/<.*$/s, '').trim();
+    }
+    return node.childForFieldName('name')?.text ?? '(anon)';
+  },
   methodNodes: new Set(['function_item']), // dentro de impl/trait
   nameField: 'name',
   decisionNodes: new Set([

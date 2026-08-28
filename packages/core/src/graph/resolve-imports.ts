@@ -126,7 +126,7 @@ export class ImportResolver {
     const byDir = new Map<string, string[]>();
     for (const path of this.files) {
       if (!path.endsWith('.go')) continue;
-      const dir = path.slice(0, path.lastIndexOf('/')) || '.';
+      const dir = dirname(path) || '.'; // archivos en la raíz → paquete "."
       if (!byDir.has(dir)) byDir.set(dir, []);
       byDir.get(dir)!.push(path);
     }

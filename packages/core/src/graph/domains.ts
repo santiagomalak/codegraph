@@ -27,6 +27,22 @@ function dirname(path: string): string {
   return i < 0 ? '' : path.slice(0, i);
 }
 
+/**
+ * PRNG determinista (mulberry32). Louvain elige el orden de recorrido al azar;
+ * con una semilla fija, el mismo proyecto da siempre los mismos dominios
+ * (si no, el CODEMAP y el graph.json cambian entre corridas idénticas).
+ */
+function seededRng(seed: number): () => number {
+  let a = seed >>> 0;
+  return () => {
+    a |= 0;
+    a = (a + 0x6d2b79f5) | 0;
+    let t = Math.imul(a ^ (a >>> 15), 1 | a);
+    t = (t + Math.imul(t ^ (t >>> 7), 61 | t)) ^ t;
+    return ((t ^ (t >>> 14)) >>> 0) / 4294967296;
+  };
+}
+
 /** Directorio común más largo de una lista de paths ("src/core" p. ej.). */
 function commonDir(paths: string[]): string {
   if (paths.length === 0) return '';
@@ -122,7 +138,7 @@ function mergeSingletons(groups: string[][]): string[][] {
   if (big.length === 0) return groups;
 
   for (const [file] of singles as Array<[string]>) {
-    const fileDir = file.slice(0, file.lastIndexOf('/'));
+    const fileDir = dirname(file);
     let target = big[0]!;
     let bestScore = -1;
     for (const group of big) {
@@ -139,8 +155,9 @@ function mergeSingletons(groups: string[][]): string[][] {
 }
 
 export function detectDomains(files: string[], importEdges: SimpleEdge[]): DomainInfo[] {
+  const fileSet = new Set(files);
   const internalEdges = importEdges.filter(
-    (e) => files.includes(e.source) && files.includes(e.target) && e.source !== e.target,
+    (e) => fileSet.has(e.source) && fileSet.has(e.target) && e.source !== e.target,
   );
 
   if (internalEdges.length === 0) return domainsByDirectory(files);
@@ -155,7 +172,7 @@ export function detectDomains(files: string[], importEdges: SimpleEdge[]): Domai
     }
   }
 
-  const communities = louvain(g, { resolution: 1 });
+  const communities = louvain(g, { resolution: 1, rng: seededRng(0x1a2b3c4d) });
 
   const groups = new Map<number, string[]>();
   for (const f of files) {
