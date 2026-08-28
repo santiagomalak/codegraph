@@ -3,3 +3,9 @@ node_modules/
 *.log
 dist/
 .env
+
+# Salida del propio analizador
+.codegraph/
+
+# Builds de los paquetes del monorepo
+packages/*/dist/

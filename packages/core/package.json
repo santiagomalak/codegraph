@@ -1,0 +1,34 @@
+{
+  "name": "@codegraph/core",
+  "version": "3.0.0",
+  "description": "Motor de análisis de Code Graph Unified: parsea un proyecto y construye un grafo de conocimiento multicapa. Corre en Node y en el navegador.",
+  "type": "module",
+  "main": "./dist/index.js",
+  "types": "./dist/index.d.ts",
+  "exports": {
+    ".": {
+      "types": "./dist/index.d.ts",
+      "import": "./dist/index.js"
+    }
+  },
+  "files": ["dist", "wasm", "README.md"],
+  "scripts": {
+    "build": "tsc -p tsconfig.json",
+    "dev": "tsc -p tsconfig.json --watch",
+    "typecheck": "tsc -p tsconfig.json --noEmit",
+    "test": "vitest run",
+    "test:watch": "vitest"
+  },
+  "dependencies": {
+    "graphology": "^0.25.4",
+    "graphology-communities-louvain": "^2.0.1",
+    "web-tree-sitter": "^0.22.6",
+    "tree-sitter-wasms": "^0.1.11"
+  },
+  "devDependencies": {
+    "@types/node": "^20.11.0",
+    "typescript": "^5.3.3",
+    "vitest": "^1.6.0"
+  },
+  "license": "MIT"
+}

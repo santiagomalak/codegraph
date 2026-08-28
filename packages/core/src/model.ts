@@ -1,0 +1,242 @@
+/**
+ * model.ts — El "contrato" de datos de todo Code Graph Unified.
+ *
+ * Todos los paquetes (core, cli, web, mcp) hablan con estas mismas estructuras.
+ * Si cambiás algo acá, cambiás la forma de los datos en toda la app.
+ *
+ * Flujo de los tipos:
+ *   SourceFile[]  --(parsing)-->  ParsedFile[]  --(graph)-->  KnowledgeGraph
+ *                                       \--(summary)--> ProjectSummary
+ *   Todo junto = ProjectAnalysis
+ */
+
+/** Lenguajes que el motor sabe entender. `unknown` = archivo listado pero no parseado. */
+export type LanguageId =
+  | 'python'
+  | 'javascript'
+  | 'typescript'
+  | 'jsx'
+  | 'tsx'
+  | 'css'
+  | 'json'
+  | 'markdown'
+  | 'unknown';
+
+// ────────────────────────────────────────────────────────────────────────────
+// ENTRADA
+// ────────────────────────────────────────────────────────────────────────────
+
+/** Un archivo crudo del proyecto. Es lo único que el core necesita como input. */
+export interface SourceFile {
+  /** Ruta relativa a la raíz del proyecto, SIEMPRE con "/" como separador. */
+  path: string;
+  /** Contenido completo del archivo en texto. */
+  content: string;
+}
+
+// ────────────────────────────────────────────────────────────────────────────
+// RESULTADO DEL PARSING (una entrada por archivo)
+// ────────────────────────────────────────────────────────────────────────────
+
+/** Un `import` / `require` / `from ... import` encontrado en un archivo. */
+export interface ImportRef {
+  /** El especificador tal cual aparece en el código: "./utils", "react", "os.path". */
+  specifier: string;
+  /** `internal` = apunta a otro archivo del proyecto. `external` = paquete de terceros. */
+  kind: 'internal' | 'external';
+  /** Si se pudo resolver a un archivo real del proyecto, su `path`. */
+  resolved?: string;
+  line: number;
+}
+
+/** Una función, clase o método declarado en un archivo. */
+export interface SymbolDef {
+  /** Id estable y único: `${filePath}#${name}` (o `#${name}@${line}` si hay choque). */
+  id: string;
+  name: string;
+  kind: 'function' | 'class' | 'method';
+  line: number;
+  endLine: number;
+  /** `true` si el símbolo se exporta (JS/TS) o es "público" (Python: no empieza con "_"). */
+  exported: boolean;
+  async: boolean;
+  /** Nombres invocados dentro del cuerpo, SIN resolver todavía (ej: ["fetch", "parse"]). */
+  calls: string[];
+  /** `true` si tiene JSDoc (`/** ... *​/`) o docstring de Python. */
+  documented: boolean;
+}
+
+/** Un problema detectado por las reglas heurísticas (no es un error de compilación). */
+export interface Issue {
+  /** Id de la regla que lo disparó, ej: "no-console", "no-eval". */
+  rule: string;
+  category: 'debug' | 'security' | 'style' | 'smell' | 'todo';
+  severity: 'info' | 'warning' | 'error';
+  message: string;
+  line: number;
+  /** El texto de la línea (recortado) para dar contexto. */
+  snippet: string;
+}
+
+/** Métricas numéricas de un archivo. */
+export interface FileMetrics {
+  /** Líneas totales, incluyendo blancos y comentarios. */
+  loc: number;
+  /** Líneas de código "reales" (sin blancos ni comentarios). */
+  sloc: number;
+  /** Líneas de comentario. */
+  comments: number;
+  /**
+   * Complejidad ciclomática aproximada del archivo:
+   * 1 + cantidad de puntos de decisión (if, for, while, case, and/or, ?, catch...).
+   */
+  complexity: number;
+  /** % de símbolos con documentación (0..100). 100 si no hay símbolos. */
+  docCoverage: number;
+}
+
+/** El resultado de parsear UN archivo. */
+export interface ParsedFile {
+  path: string;
+  language: LanguageId;
+  metrics: FileMetrics;
+  imports: ImportRef[];
+  /** Nombres exportados del archivo (JS/TS). Vacío en Python. */
+  exports: string[];
+  symbols: SymbolDef[];
+  issues: Issue[];
+  /** Mensaje de error si el parser falló con este archivo (el resto queda vacío). */
+  parseError?: string;
+}
+
+// ────────────────────────────────────────────────────────────────────────────
+// EL GRAFO DE CONOCIMIENTO
+// ────────────────────────────────────────────────────────────────────────────
+
+/**
+ * Tipos de nodo del grafo. El grafo mezcla varios "planos" en una sola estructura;
+ * la UI decide cuáles mostrar.
+ *  - file:     un archivo del proyecto
+ *  - symbol:   una función / clase / método
+ *  - domain:   un grupo de archivos que forman un "área" del proyecto (auth, ui, ...)
+ *  - external: un paquete de terceros (react, os, ...)
+ */
+export type NodeType = 'file' | 'symbol' | 'domain' | 'external';
+
+/**
+ * Tipos de arista:
+ *  - contains:  file → symbol   (el archivo declara ese símbolo)
+ *  - imports:   file → file     (o file → external)
+ *  - calls:     symbol → symbol (una función llama a otra)
+ *  - member-of: file → domain   (el archivo pertenece a ese dominio)
+ */
+export type EdgeType = 'contains' | 'imports' | 'calls' | 'member-of';
+
+export interface GraphNode {
+  id: string;
+  type: NodeType;
+  label: string;
+
+  // Presentes cuando type === 'file'
+  path?: string;
+  language?: LanguageId;
+  loc?: number;
+  complexity?: number;
+  issues?: number;
+  /** Id del nodo `domain` al que pertenece este archivo. */
+  domain?: string;
+  /** Métrica de "riesgo" 0..1 (complejidad + issues + churn si hay git). */
+  risk?: number;
+
+  // Presentes cuando type === 'symbol'
+  kind?: SymbolDef['kind'];
+  /** Path del archivo que declara el símbolo. */
+  file?: string;
+  exported?: boolean;
+
+  // Presentes cuando type === 'domain'
+  fileCount?: number;
+  color?: string;
+}
+
+export interface GraphEdge {
+  id: string;
+  source: string;
+  target: string;
+  type: EdgeType;
+  /** `true` si esta arista `imports` forma parte de un ciclo de dependencias. */
+  circular?: boolean;
+}
+
+/** Un "área" del proyecto detectada automáticamente por clustering. */
+export interface DomainInfo {
+  id: string;
+  label: string;
+  /** Paths de los archivos que la componen. */
+  files: string[];
+  color: string;
+}
+
+export interface KnowledgeGraph {
+  nodes: GraphNode[];
+  edges: GraphEdge[];
+  /** Cada ciclo es una lista ordenada de paths de archivo: a → b → c → a. */
+  cycles: string[][];
+  domains: DomainInfo[];
+}
+
+// ────────────────────────────────────────────────────────────────────────────
+// RESUMEN DEL PROYECTO
+// ────────────────────────────────────────────────────────────────────────────
+
+/** Puntaje de salud del proyecto (0..100) con el desglose de por qué. */
+export interface HealthScore {
+  score: number;
+  grade: 'A' | 'B' | 'C' | 'D' | 'F';
+  /** Cada factor resta puntos; `impact` es negativo. */
+  factors: Array<{ label: string; impact: number; detail: string }>;
+}
+
+export interface ProjectSummary {
+  projectName: string;
+  totalFiles: number;
+  totalLoc: number;
+  totalSymbols: number;
+  totalIssues: number;
+  issuesBySeverity: Record<'info' | 'warning' | 'error', number>;
+  /** ej: { "TypeScript": 42, "Python": 10 } */
+  filesByLanguage: Record<string, number>;
+  avgComplexity: number;
+  circularDeps: number;
+  /** Archivos que parecen ser el punto de entrada (index, main, app, server...). */
+  entryPoints: string[];
+  /** Tecnologías detectadas: ["React", "Vite", "Tailwind CSS", "FastAPI"...]. */
+  stack: string[];
+  health: HealthScore;
+}
+
+// ────────────────────────────────────────────────────────────────────────────
+// RESULTADO COMPLETO
+// ────────────────────────────────────────────────────────────────────────────
+
+export interface ProjectAnalysis {
+  projectName: string;
+  /** ISO timestamp de cuándo se corrió el análisis. */
+  analyzedAt: string;
+  durationMs: number;
+  files: ParsedFile[];
+  graph: KnowledgeGraph;
+  summary: ProjectSummary;
+}
+
+export interface AnalyzeOptions {
+  /** Nombre del proyecto. Si se omite, se infiere del primer path. */
+  projectName?: string;
+  /**
+   * Carpeta donde están los `.wasm` de las gramáticas tree-sitter.
+   * En Node se detecta solo; en el navegador hay que pasarla (ej: "/wasm").
+   */
+  wasmDir?: string;
+  /** Callback de progreso, se llama una vez por archivo parseado. */
+  onProgress?: (done: number, total: number, path: string) => void;
+}

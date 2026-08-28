@@ -1,0 +1,59 @@
+@import url('https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap');
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+:root {
+  color-scheme: dark;
+}
+
+html,
+body,
+#root {
+  height: 100%;
+  margin: 0;
+}
+
+body {
+  background: #0a0c12;
+  color: #e5e7eb;
+  font-family: 'Inter', system-ui, sans-serif;
+  overflow: hidden;
+}
+
+/* Scrollbars discretas */
+::-webkit-scrollbar {
+  width: 10px;
+  height: 10px;
+}
+::-webkit-scrollbar-thumb {
+  background: #2f3547;
+  border-radius: 5px;
+}
+::-webkit-scrollbar-track {
+  background: transparent;
+}
+
+.graph-node-label {
+  paint-order: stroke;
+  stroke: #0a0c12;
+  stroke-width: 3px;
+  stroke-linejoin: round;
+  font-size: 10px;
+  fill: #cbd5e1;
+  pointer-events: none;
+}
+
+.graph-edge {
+  stroke: #2f3547;
+  stroke-width: 1;
+}
+.graph-edge.circular {
+  stroke: #c084fc;
+  stroke-width: 2;
+  stroke-dasharray: 4 3;
+}
+.graph-edge.highlight {
+  stroke: #818cf8;
+  stroke-width: 2;
+}

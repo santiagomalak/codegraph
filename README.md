@@ -1,89 +1,79 @@
 # Code Graph Unified
 
-Analizador de proyectos de código con visualización de grafo interactivo y generación de CODEMAP para agentes IA.
+Convierte un proyecto de código en un **grafo de conocimiento multicapa**: todos
+los archivos, cómo se conectan, en qué lenguaje están, qué áreas lo componen y
+dónde están los problemas. Para vos y para que la IA entienda el proyecto de
+forma gráfica.
 
-## Funcionalidades
+> **v3 en construcción.** El motor (tree-sitter, AST real), el CLI y una primera
+> interfaz web ya funcionan. Ver [`docs/`](./docs/) y [`MIGRATION.md`](./MIGRATION.md).
 
-- Carga una carpeta completa de proyecto desde el navegador
-- Visualiza las dependencias como grafo interactivo (D3.js) con drag & drop y zoom
-- Detecta errores automáticamente: `console.log`, `debugger`, `eval`, `innerHTML`, TODO/FIXME, etc.
-- Calcula métricas: complejidad ciclomática, líneas, doc coverage
-- Inspector por archivo con 4 tabs: Overview / Errores / Dependencias / JSON para IA
-- Exporta `CODEMAP.md` listo para compartir con Claude u otro agente IA
-- Exporta JSON completo del análisis para pipelines de IA
-
-## Lenguajes soportados
-
-JavaScript, TypeScript, JSX, TSX, Python, CSS, SCSS, JSON, Markdown
-
-## Cómo correr
-
-### Opción 1 — VSCode Live Server (recomendado)
-
-1. Instalar extensión **Live Server** en VSCode
-2. Click derecho en `public/index.html` → **Open with Live Server**
-3. Se abre en `http://127.0.0.1:5500`
-
-### Opción 2 — Python
-
-```bash
-python3 -m http.server 3000 --directory public
-# Abrir: http://localhost:3000
-```
-
-### Opción 3 — npm
+## Empezar
 
 ```bash
 npm install
-npm start
-# Abre automáticamente en http://localhost:3000
+npm run build
+
+# Ver el grafo en el navegador
+npm run serve -- "C:\ruta\a\mi-proyecto"
+# abrir http://localhost:4173
+
+# …o solo generar los archivos de análisis
+npm run analyze -- "C:\ruta\a\mi-proyecto"
 ```
 
-## Estructura
+`analyze` genera en `mi-proyecto/.codegraph/`:
+
+| Archivo | Para qué |
+|---|---|
+| `analysis.json` | El análisis completo (archivos + grafo + resumen) |
+| `graph.json` | Solo el grafo (nodos y aristas) |
+| `CODEMAP.md` | Resumen para pegarle a Claude como contexto |
+
+## Qué detecta
+
+- **Estructura**: archivos, funciones, clases, métodos (con AST real de tree-sitter).
+- **Dependencias**: imports internos y externos, con resolución de rutas.
+- **Dependencias circulares** (algoritmo de Tarjan).
+- **Dominios**: agrupa el proyecto en áreas automáticamente (algoritmo de Louvain).
+- **Métricas**: líneas, complejidad ciclomática, cobertura de documentación.
+- **Issues**: `console.log`, `eval`, `debugger`, `== None`, `except:` pelado, TODOs…
+- **Stack**: React, Vite, Django, FastAPI, Tailwind, Docker… por archivos e imports.
+- **Health score** 0–100 con el desglose de qué le baja la nota.
+
+**Lenguajes:** Python, JavaScript, TypeScript, JSX, TSX. (Más gramáticas =
+más lenguajes, sin cambiar la arquitectura.)
+
+## Estructura del repo
 
 ```
-code-graph-unified/
-├── public/
-│   └── index.html              # Punto de entrada (abrir en navegador)
-├── src/
-│   ├── core/
-│   │   └── analyzer.js         # Análisis AST, errores, métricas
-│   ├── ui/
-│   │   ├── components/
-│   │   │   └── GraphViewer.js  # Grafo D3.js, eventos
-│   │   └── styles/
-│   │       └── main.css        # Estilos y variables CSS
-│   ├── api/
-│   │   └── codemapGenerator.js # Genera CODEMAP.md y JSON
-│   └── app.js                  # Orquestador: conecta todo
-├── package.json
-└── README.md
+packages/
+├── core/    @codegraph/core — el motor (Node + navegador, sin I/O)
+├── cli/     @codegraph/cli  — el comando `codegraph`
+└── web/     @codegraph/web  — la interfaz (React + d3-force)
+docs/        documentación explicada, en castellano
+src/ public/ ⚠️ web vieja (v2), reemplazada por packages/web — se borrará
+landing/     landing page (Astro)
 ```
 
-## Cómo usar con Claude
+## Documentación
 
-1. Cargá tu proyecto
-2. Exportá el **JSON para IA** o el **CODEMAP.md**
-3. Pegalo al inicio de una conversación con Claude:
+| Doc | |
+|---|---|
+| [docs/01 · Visión y fases](./docs/01-vision-y-fases.md) | El plan por etapas |
+| [docs/02 · Arquitectura](./docs/02-arquitectura.md) | El monorepo y los paquetes |
+| [docs/03 · El motor](./docs/03-el-motor.md) | Cómo se analiza un proyecto, paso a paso |
+| [docs/04 · El grafo](./docs/04-el-grafo.md) | Nodos, aristas, dominios, ciclos |
+| [docs/05 · La interfaz](./docs/05-la-interfaz.md) | Cómo ver el grafo en el navegador |
 
-```
-Contexto de mi proyecto:
-[pegar contenido del CODEMAP.md o JSON]
+## Scripts
 
-Pregunta: ...
-```
-
-## Arquitectura
-
-El proyecto usa separación estricta de capas:
-
-| Capa    | Archivo            | Responsabilidad                        |
-|---------|--------------------|----------------------------------------|
-| Core    | `analyzer.js`      | Lógica pura, sin UI                    |
-| UI      | `GraphViewer.js`   | Visualización, emite eventos           |
-| API     | `codemapGenerator` | Transformación de datos, exportación   |
-| Orq.    | `app.js`           | Conecta capas, maneja flujo            |
+| Comando | |
+|---|---|
+| `npm run build` | Compila `core` y `cli` |
+| `npm test` | Tests (Vitest) |
+| `npm run typecheck` | Chequeo de tipos |
 
 ---
 
-Creado por Santiago Malak
+Creado por Santiago Malak · MIT

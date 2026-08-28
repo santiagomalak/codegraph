@@ -1,0 +1,26 @@
+{
+  "name": "@codegraph/cli",
+  "version": "3.0.0",
+  "description": "Línea de comandos de Code Graph Unified: analiza un proyecto y genera el grafo, el CODEMAP y el JSON para IA.",
+  "type": "module",
+  "bin": {
+    "codegraph": "./dist/index.js"
+  },
+  "files": ["dist", "README.md"],
+  "scripts": {
+    "build": "tsc -p tsconfig.json",
+    "dev": "tsc -p tsconfig.json --watch",
+    "typecheck": "tsc -p tsconfig.json --noEmit",
+    "start": "node dist/index.js"
+  },
+  "dependencies": {
+    "@codegraph/core": "3.0.0",
+    "commander": "^12.1.0",
+    "picocolors": "^1.0.1"
+  },
+  "devDependencies": {
+    "@types/node": "^20.11.0",
+    "typescript": "^5.3.3"
+  },
+  "license": "MIT"
+}
