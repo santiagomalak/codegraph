@@ -22,7 +22,10 @@ jobs:
       # Chequeo end-to-end: el CLI se analiza a sí mismo y no debe tener ciclos.
       - run: node packages/cli/dist/index.js analyze packages/core/src --fail-on-cycles
 
-      # El servidor MCP arranca y lista sus herramientas.
+      # El generador del demo funciona (lo usa el build de Vercel).
+      - run: npm run demo
+
+      # El servidor MCP arranca y responde el handshake.
       - run: |
           echo '{"jsonrpc":"2.0","id":1,"method":"initialize","params":{"protocolVersion":"2024-11-05","capabilities":{},"clientInfo":{"name":"ci","version":"1"}}}' \
             | node packages/mcp/dist/index.js --project packages/core \

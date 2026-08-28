@@ -33,11 +33,14 @@ Ver también:
 - CLI: `codegraph analyze` y `codegraph serve`.
 - Tests del motor (Vitest).
 
-✅ **Fase 2 — Interfaz (v1)**
+✅ **Fase 2 — Interfaz**
 - `packages/web`: SPA en React + Tailwind + d3-force.
-- Grafo interactivo: zoom/pan, arrastre, auto-encuadre, resaltado de vecinos.
-- Sidebar con resumen, Inspector por archivo, Toolbar con búsqueda y capas.
-- `codegraph serve` sirve la UI y expone `/api/analysis`.
+- Dos vistas: **Archivos** (imports) y **Símbolos** (call graph).
+- Grafo: aristas curvas animadas, blobs por dominio, glow de riesgo, auto-encuadre.
+- Sidebar (dominios clicables), Inspector (archivo o símbolo, con links a vecinos),
+  command palette (Ctrl/Cmd+K).
+- `codegraph serve --watch`: live reload por SSE.
+- Fallback a demo cuando no hay servidor (deploy estático).
 
 ✅ **Fase 3 — IA (v1)**
 - `packages/mcp`: servidor MCP con 11 herramientas (`overview`, `describe_file`,
@@ -47,9 +50,7 @@ Ver también:
 - Funciones de consulta puras en `core/src/queries.ts`.
 
 🚧 **Sigue**
-- Capa de símbolos (call graph) conmutable en la UI web.
-- Render en canvas/WebGL para proyectos grandes.
-- `codegraph watch`: re-analizar al guardar archivos.
-- Chat con el proyecto (RAG sobre el grafo).
+- Render en canvas/WebGL para proyectos muy grandes.
+- Chat con el proyecto (RAG sobre el grafo) + "explicá este nodo" en la UI.
 - Extensión de VS Code.
 - Capa git (churn, hotspots, timeline).

@@ -41,6 +41,7 @@ program
   .description('Analiza una carpeta y levanta la interfaz web local.')
   .argument('[carpeta]', 'carpeta a analizar', '.')
   .option('-p, --port <n>', 'puerto', '4173')
+  .option('-w, --watch', 're-analizar automáticamente al guardar archivos')
   .action((carpeta: string, opts) => runServe(carpeta, opts).catch(fail));
 
 program.parseAsync();

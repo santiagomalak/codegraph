@@ -14,8 +14,8 @@ forma gráfica.
 npm install
 npm run build
 
-# Ver el grafo en el navegador
-npm run serve -- "C:\ruta\a\mi-proyecto"
+# Ver el grafo en el navegador (--watch = se actualiza al guardar)
+npm run serve -- "C:\ruta\a\mi-proyecto" --watch
 # abrir http://localhost:4173
 
 # …o solo generar los archivos de análisis
@@ -53,7 +53,6 @@ packages/
 ├── mcp/     @codegraph/mcp  — servidor MCP para Claude Code
 └── web/     @codegraph/web  — la interfaz (React + d3-force)
 docs/        documentación explicada, en castellano
-src/ public/ ⚠️ web vieja (v2), reemplazada por packages/web — se borrará
 landing/     landing page (Astro)
 ```
 

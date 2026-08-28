@@ -28,28 +28,32 @@ Fase 1 está hecha, la interfaz web se migra en la Fase 2.
 | `src/utils/hash.js`, `storage.js` | — | específicos del navegador; vuelven en `packages/web` |
 | `.github/action/` | — | se actualizará para usar el CLI nuevo (Fase 4) |
 
-## Qué sigue en pie (por ahora)
+## Qué se borró (Fase 2/3)
 
-Estos archivos y carpetas **todavía están** y funcionan con la config vieja. Se
-migran o se borran en la Fase 2, no antes, para no romper nada a mitad de camino:
+La web vieja quedó totalmente reemplazada por `packages/web`, así que se sacó
+todo lo que dependía de ella:
 
-- `src/`, `public/` — la web vieja. Scripts `npm run legacy:dev` / `legacy:build`.
-- `vite.config.ts`, `vite.config.vercel.ts`, `tailwind.config.js`, `postcss.config.js`
-- `landing/` — landing en Astro, intacta.
-- `dist/` — build viejo (ignorado por git).
+- `src/`, `public/` — la web vieja (regex + D3).
+- `vite.config.ts`, `vite.config.vercel.ts`, `tailwind.config.js`,
+  `postcss.config.js`, `.eslintrc.json`, `vitest.config.ts`, `tsconfig.json`
+  (raíz) — configs de la web vieja.
+- `Dockerfile`, `docker-compose.yml`, `nginx.conf` — deploy viejo.
+- `.github/action/`, `scripts/build-action.js` — GitHub Action vieja.
+- `.github/workflows/deploy-vercel.yml`, `release.yml`, `.releaserc.json` —
+  el deploy ahora lo maneja `vercel.json`; el release automático se rehará
+  cuando se publique a npm.
+- `ARCHITECTURE.md`, `DIAGRAMA_ARQUITECTURA.md`, `RESUMEN_FINAL.md`,
+  `ELITE_ROADMAP.md`, `API.md`, `PLUGIN_DEVELOPMENT.md` — docs de la v2,
+  reemplazados por `docs/`.
 
-## Cambios que vas a notar
-
-- **`package.json` raíz**: ahora tiene `"workspaces"` y `"private": true`. Los
-  scripts `dev`/`build` viejos pasaron a llamarse `legacy:dev`/`legacy:build`.
-- Correr el análisis ya no es abrir el navegador: `node packages/cli/dist/index.js analyze <carpeta>`.
-- La salida va a `<carpeta>/.codegraph/` (agregado al `.gitignore`).
+Queda en pie: `landing/` (Astro, intacta), `CONTRIBUTING.md`, `SECURITY.md`
+(se actualizan más adelante).
 
 ## Cómo levantar todo desde cero
 
 ```bash
 npm install        # instala el monorepo entero
-npm run build      # compila core y cli
+npm run build      # compila core, cli, mcp y web
 npm test           # corre los tests
-node packages/cli/dist/index.js analyze .    # analiza este mismo repo
+npm run serve -- . # analiza este repo y abre la web en :4173
 ```

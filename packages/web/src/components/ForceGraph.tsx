@@ -2,12 +2,21 @@
  * ForceGraph.tsx — El grafo interactivo (SVG + simulación de fuerzas de d3).
  *
  * - d3-force calcula las posiciones.
- * - d3-zoom maneja el zoom/pan (rueda + arrastrar el fondo).
- * - El arrastre de nodos se hace con pointer events de React (más simple que
- *   mezclar el data-join de d3 con React).
+ * - d3-zoom maneja el zoom/pan.
+ * - El arrastre de nodos usa pointer events de React.
+ * - Extras visuales: aristas curvas con "flujo" animado, blobs por dominio,
+ *   fondo con degradé + grilla de puntos, glow en nodos de riesgo.
  */
 
-import { useCallback, useEffect, useMemo, useReducer, useRef, useState, type PointerEvent as ReactPointerEvent } from 'react';
+import {
+  useCallback,
+  useEffect,
+  useMemo,
+  useReducer,
+  useRef,
+  useState,
+  type PointerEvent as ReactPointerEvent,
+} from 'react';
 import {
   forceCenter,
   forceCollide,
@@ -19,13 +28,16 @@ import {
   type Simulation,
 } from 'd3-force';
 import { select } from 'd3-selection';
+import 'd3-transition'; // registra .transition() en las selecciones
 import { zoom as d3zoom, zoomIdentity, type ZoomBehavior } from 'd3-zoom';
 import type { VizGraph, VizLink, VizNode } from '../graph-model.js';
 import { nodeRadius } from '../graph-model.js';
+import { hullPath } from '../lib/hull.js';
 
 interface Props {
   graph: VizGraph;
   groupByDomain: boolean;
+  domainFilter: string | null;
   selectedId: string | null;
   search: string;
   onSelect: (node: VizNode | null) => void;
@@ -37,7 +49,25 @@ interface Transform {
   k: number;
 }
 
-export function ForceGraph({ graph, groupByDomain, selectedId, search, onSelect }: Props) {
+/** Punto de control de una curva cuadrática entre dos nodos. */
+function controlPoint(s: VizNode, t: VizNode): [number, number] {
+  const mx = (s.x! + t.x!) / 2;
+  const my = (s.y! + t.y!) / 2;
+  const dx = t.x! - s.x!;
+  const dy = t.y! - s.y!;
+  const len = Math.hypot(dx, dy) || 1;
+  const curve = Math.min(40, len * 0.15);
+  return [mx - (dy / len) * curve, my + (dx / len) * curve];
+}
+
+export function ForceGraph({
+  graph,
+  groupByDomain,
+  domainFilter,
+  selectedId,
+  search,
+  onSelect,
+}: Props) {
   const svgRef = useRef<SVGSVGElement | null>(null);
   const simRef = useRef<Simulation<VizNode, VizLink> | null>(null);
   const nodesRef = useRef<VizNode[]>([]);
@@ -47,7 +77,6 @@ export function ForceGraph({ graph, groupByDomain, selectedId, search, onSelect 
   const [hoverId, setHoverId] = useState<string | null>(null);
   const [size, setSize] = useState({ w: 800, h: 600 });
 
-  // Adyacencia para resaltar vecinos
   const adjacency = useMemo(() => {
     const map = new Map<string, Set<string>>();
     const add = (a: string, b: string) => {
@@ -63,7 +92,6 @@ export function ForceGraph({ graph, groupByDomain, selectedId, search, onSelect 
     return map;
   }, [graph]);
 
-  // Medir el contenedor
   useEffect(() => {
     const el = svgRef.current;
     if (!el) return;
@@ -74,7 +102,7 @@ export function ForceGraph({ graph, groupByDomain, selectedId, search, onSelect 
     return () => ro.disconnect();
   }, []);
 
-  // Zoom / pan
+  // ── Zoom / pan ─────────────────────────────────────────────────────────
   const zoomRef = useRef<ZoomBehavior<SVGSVGElement, unknown> | null>(null);
   const userInteractedRef = useRef(false);
 
@@ -82,7 +110,7 @@ export function ForceGraph({ graph, groupByDomain, selectedId, search, onSelect 
     const svg = svgRef.current;
     if (!svg) return;
     const behavior = d3zoom<SVGSVGElement, unknown>()
-      .scaleExtent([0.1, 4])
+      .scaleExtent([0.05, 4])
       .filter((event: Event) => {
         const target = event.target as Element;
         return !target.closest?.('[data-node]');
@@ -99,56 +127,51 @@ export function ForceGraph({ graph, groupByDomain, selectedId, search, onSelect 
     };
   }, []);
 
-  /** Ajusta el zoom para que todo el grafo entre en pantalla. */
   const fitView = useCallback(() => {
     const svg = svgRef.current;
     const zoom = zoomRef.current;
     const ns = nodesRef.current.filter((n) => n.x != null && n.y != null);
     if (!svg || !zoom || ns.length === 0) return;
-
-    const pad = 70;
+    const pad = 80;
     const minX = Math.min(...ns.map((n) => n.x!)) - pad;
     const maxX = Math.max(...ns.map((n) => n.x!)) + pad;
     const minY = Math.min(...ns.map((n) => n.y!)) - pad;
     const maxY = Math.max(...ns.map((n) => n.y!)) + pad;
     const w = svg.clientWidth || 800;
     const h = svg.clientHeight || 600;
-    const k = Math.max(0.1, Math.min(2, Math.min(w / (maxX - minX), h / (maxY - minY))));
+    const k = Math.max(0.05, Math.min(1.8, Math.min(w / (maxX - minX), h / (maxY - minY))));
     const tx = w / 2 - (k * (minX + maxX)) / 2;
     const ty = h / 2 - (k * (minY + maxY)) / 2;
-
     select(svg)
       .transition()
       .duration(450)
       .call(zoom.transform as never, zoomIdentity.translate(tx, ty).scale(k));
   }, []);
 
-  // Construir / reconstruir la simulación cuando cambian los datos o el modo
+  // ── Simulación ─────────────────────────────────────────────────────────
   useEffect(() => {
-    // Clonamos para que d3 pueda mutar posiciones sin tocar las props
     const nodes: VizNode[] = graph.nodes.map((n) => ({ ...n }));
     const links: VizLink[] = graph.links.map((l) => ({ ...l }));
     nodesRef.current = nodes;
     linksRef.current = links;
 
+    const symbolMode = graph.mode === 'symbols';
     const sim = forceSimulation<VizNode>(nodes)
       .force(
         'link',
         forceLink<VizNode, VizLink>(links)
           .id((d) => d.id)
-          .distance(80)
-          .strength(0.4),
+          .distance(symbolMode ? 55 : 85)
+          .strength(symbolMode ? 0.5 : 0.4),
       )
-      .force('charge', forceManyBody().strength(-220).distanceMax(500))
-      .force('collide', forceCollide<VizNode>((d) => nodeRadius(d) + 7))
+      .force('charge', forceManyBody().strength(symbolMode ? -160 : -240).distanceMax(600))
+      .force('collide', forceCollide<VizNode>((d) => nodeRadius(d) + (symbolMode ? 4 : 8)))
       .force('center', forceCenter(size.w / 2, size.h / 2))
-      // Empujón suave hacia el centro: evita que los nodos sueltos vuelen lejos.
       .force('x', forceX<VizNode>(size.w / 2).strength(0.04))
       .force('y', forceY<VizNode>(size.h / 2).strength(0.04))
       .on('tick', rerender);
 
-    if (groupByDomain) {
-      // Empuja cada dominio hacia un punto propio en una grilla
+    if (groupByDomain && !symbolMode) {
       const domains = [...new Set(nodes.map((n) => n.domain ?? '∅'))];
       const cols = Math.ceil(Math.sqrt(domains.length));
       const anchor = new Map<string, { x: number; y: number }>();
@@ -159,8 +182,8 @@ export function ForceGraph({ graph, groupByDomain, selectedId, search, onSelect 
         });
       });
       sim
-        .force('x', forceX<VizNode>((d) => anchor.get(d.domain ?? '∅')!.x).strength(0.25))
-        .force('y', forceY<VizNode>((d) => anchor.get(d.domain ?? '∅')!.y).strength(0.25));
+        .force('x', forceX<VizNode>((d) => anchor.get(d.domain ?? '∅')!.x).strength(0.28))
+        .force('y', forceY<VizNode>((d) => anchor.get(d.domain ?? '∅')!.y).strength(0.28));
     }
 
     simRef.current = sim;
@@ -175,7 +198,6 @@ export function ForceGraph({ graph, groupByDomain, selectedId, search, onSelect 
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [graph, groupByDomain]);
 
-  // Al cambiar el tamaño del panel: recentrar sin rehacer toda la simulación.
   useEffect(() => {
     const sim = simRef.current;
     if (!sim) return;
@@ -187,7 +209,7 @@ export function ForceGraph({ graph, groupByDomain, selectedId, search, onSelect 
     }
   }, [size.w, size.h, fitView]);
 
-  // Arrastre de nodos
+  // ── Arrastre ───────────────────────────────────────────────────────────
   const dragState = useRef<{ node: VizNode | null }>({ node: null });
   const toGraphCoords = useCallback(
     (clientX: number, clientY: number) => {
@@ -199,7 +221,6 @@ export function ForceGraph({ graph, groupByDomain, selectedId, search, onSelect 
     },
     [transform],
   );
-
   const onNodePointerDown = (e: ReactPointerEvent, node: VizNode) => {
     e.stopPropagation();
     (e.target as Element).setPointerCapture?.(e.pointerId);
@@ -230,19 +251,41 @@ export function ForceGraph({ graph, groupByDomain, selectedId, search, onSelect 
     fitView();
   };
 
+  // ── Estado derivado para el render ─────────────────────────────────────
   const nodes = nodesRef.current;
   const links = linksRef.current;
   const searchLower = search.trim().toLowerCase();
-  const matches = (n: VizNode) => searchLower !== '' && n.path.toLowerCase().includes(searchLower);
+  const matches = (n: VizNode) =>
+    searchLower !== '' && (n.path ?? n.label).toLowerCase().includes(searchLower);
   const anyMatch = searchLower !== '' && nodes.some(matches);
 
   const focusId = hoverId ?? selectedId;
   const neighbors = focusId ? (adjacency.get(focusId) ?? new Set<string>()) : null;
   const isDimmed = (id: string) => {
-    if (anyMatch) return !nodes.find((n) => n.id === id && matches(n));
+    if (anyMatch) return !nodes.some((n) => n.id === id && matches(n));
     if (neighbors) return id !== focusId && !neighbors.has(id);
     return false;
   };
+
+  // Blobs por dominio: solo tienen sentido cuando los nodos están agrupados
+  // por dominio (si no, los archivos de un dominio están desparramados).
+  const hulls = useMemo(() => {
+    if (graph.mode !== 'files' || domainFilter || !groupByDomain) return [];
+    const byDomain = new Map<string, VizNode[]>();
+    for (const n of nodes) {
+      if (n.kind !== 'file' || !n.domain || n.x == null) continue;
+      if (!byDomain.has(n.domain)) byDomain.set(n.domain, []);
+      byDomain.get(n.domain)!.push(n);
+    }
+    return [...byDomain.entries()]
+      .map(([domainId, members]) => {
+        const d = graph.domains.find((x) => x.id === domainId);
+        return { domainId, color: d?.color ?? '#64748b', path: hullPath(members, 22) };
+      })
+      .filter((h) => h.path);
+    // recalcula cada render (posiciones cambian con el tick)
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [nodes, graph, domainFilter, groupByDomain, transform]);
 
   return (
     <div className="relative h-full w-full">
@@ -253,48 +296,72 @@ export function ForceGraph({ graph, groupByDomain, selectedId, search, onSelect 
         onPointerMove={onNodePointerMove}
       >
         <defs>
-          <filter id="glow" x="-50%" y="-50%" width="200%" height="200%">
-            <feGaussianBlur stdDeviation="2.5" result="b" />
+          <radialGradient id="bg" cx="50%" cy="40%" r="75%">
+            <stop offset="0%" stopColor="#141826" />
+            <stop offset="100%" stopColor="#0a0c12" />
+          </radialGradient>
+          <pattern id="dots" width="26" height="26" patternUnits="userSpaceOnUse">
+            <circle cx="1.5" cy="1.5" r="1.5" fill="#1c2133" />
+          </pattern>
+          <filter id="glow" x="-80%" y="-80%" width="260%" height="260%">
+            <feGaussianBlur stdDeviation="3.2" result="b" />
             <feMerge>
               <feMergeNode in="b" />
               <feMergeNode in="SourceGraphic" />
             </feMerge>
           </filter>
+          <filter id="blobBlur" x="-30%" y="-30%" width="160%" height="160%">
+            <feGaussianBlur stdDeviation="8" />
+          </filter>
         </defs>
+
+        <rect width="100%" height="100%" fill="url(#bg)" />
+        <rect width="100%" height="100%" fill="url(#dots)" opacity="0.5" />
+
         <g transform={`translate(${transform.x},${transform.y}) scale(${transform.k})`}>
+          {/* Blobs de dominio */}
+          <g filter="url(#blobBlur)" opacity="0.16">
+            {hulls.map((h) => (
+              <path key={h.domainId} d={h.path} fill={h.color} />
+            ))}
+          </g>
+
           {/* Aristas */}
-          {links.map((l, i) => {
-            const s = l.source as VizNode;
-            const t = l.target as VizNode;
-            if (s.x == null || t.x == null) return null;
-            const dim = isDimmed(s.id) && isDimmed(t.id);
-            const hot =
-              focusId && (s.id === focusId || t.id === focusId) && !l.circular;
-            return (
-              <line
-                key={i}
-                className={`graph-edge ${l.circular ? 'circular' : ''} ${hot ? 'highlight' : ''}`}
-                x1={s.x}
-                y1={s.y}
-                x2={t.x}
-                y2={t.y}
-                opacity={dim ? 0.06 : 1}
-              />
-            );
-          })}
+          <g fill="none">
+            {links.map((l, i) => {
+              const s = l.source as VizNode;
+              const t = l.target as VizNode;
+              if (s.x == null || t.x == null) return null;
+              const dim = isDimmed(s.id) && isDimmed(t.id);
+              const hot = focusId != null && (s.id === focusId || t.id === focusId);
+              const [cx, cy] = controlPoint(s, t);
+              const d = `M${s.x},${s.y} Q${cx},${cy} ${t.x},${t.y}`;
+              return (
+                <path
+                  key={i}
+                  d={d}
+                  className={`gedge${l.circular ? ' gedge-circular' : ''}${hot ? ' gedge-hot' : ''}`}
+                  opacity={dim ? 0.05 : hot ? 1 : 0.5}
+                />
+              );
+            })}
+          </g>
+
           {/* Nodos */}
           {nodes.map((n) => {
             if (n.x == null || n.y == null) return null;
             const r = nodeRadius(n);
             const selected = n.id === selectedId;
             const dim = isDimmed(n.id);
+            const showLabel = r > 9 || selected || n.id === focusId || anyMatch;
+            const isClass = n.kind === 'symbol' && n.symKind === 'class';
             return (
               <g
                 key={n.id}
                 data-node
                 transform={`translate(${n.x},${n.y})`}
-                style={{ cursor: 'pointer' }}
-                opacity={dim ? 0.15 : 1}
+                className="gnode"
+                style={{ cursor: 'pointer', opacity: dim ? 0.12 : 1 }}
                 onPointerDown={(e) => onNodePointerDown(e, n)}
                 onPointerUp={() => onNodePointerUp(n)}
                 onPointerEnter={() => setHoverId(n.id)}
@@ -304,19 +371,48 @@ export function ForceGraph({ graph, groupByDomain, selectedId, search, onSelect 
                   onSelect(n);
                 }}
               >
-                <circle
-                  r={r}
-                  fill={n.color}
-                  fillOpacity={n.isExternal ? 0.25 : 0.85}
-                  stroke={
-                    n.inCycle ? '#c084fc' : n.issues > 0 ? '#f87171' : selected ? '#fff' : n.color
-                  }
-                  strokeWidth={selected ? 3 : n.inCycle || n.issues > 0 ? 2 : 1}
-                  filter={n.risk > 0.5 ? 'url(#glow)' : undefined}
-                />
-                {(r > 9 || selected || n.id === focusId) && (
-                  <text className="graph-node-label" y={r + 11} textAnchor="middle">
-                    {n.label}
+                {/* halo de riesgo */}
+                {(n.risk ?? 0) > 0.5 && (
+                  <circle r={r + 5} fill={n.color} opacity={0.18} filter="url(#glow)" />
+                )}
+                {/* forma */}
+                {isClass ? (
+                  <rect
+                    x={-r}
+                    y={-r}
+                    width={r * 2}
+                    height={r * 2}
+                    rx={3}
+                    transform="rotate(45)"
+                    fill={n.color}
+                    fillOpacity={0.9}
+                    stroke={selected ? '#fff' : n.color}
+                    strokeWidth={selected ? 2.5 : 1}
+                  />
+                ) : (
+                  <circle
+                    r={r}
+                    fill={n.color}
+                    fillOpacity={n.kind === 'external' ? 0.25 : 0.88}
+                    stroke={
+                      n.inCycle
+                        ? '#c084fc'
+                        : (n.issues ?? 0) > 0
+                          ? '#f87171'
+                          : selected
+                            ? '#ffffff'
+                            : n.color
+                    }
+                    strokeWidth={selected ? 2.5 : n.inCycle || (n.issues ?? 0) > 0 ? 2 : 1}
+                  />
+                )}
+                {/* badge de issues */}
+                {(n.issues ?? 0) > 0 && (
+                  <circle cx={r * 0.72} cy={-r * 0.72} r={3.2} fill="#f87171" stroke="#0a0c12" strokeWidth={1} />
+                )}
+                {showLabel && (
+                  <text className="gnode-label" y={r + 12} textAnchor="middle">
+                    {n.label.length > 28 ? n.label.slice(0, 26) + '…' : n.label}
                   </text>
                 )}
               </g>
@@ -325,12 +421,14 @@ export function ForceGraph({ graph, groupByDomain, selectedId, search, onSelect 
         </g>
       </svg>
 
-      <button
-        onClick={resetView}
-        className="absolute bottom-4 right-4 rounded-md border border-ink-600 bg-ink-800/80 px-3 py-1.5 text-xs text-slate-300 backdrop-blur hover:bg-ink-700"
-      >
-        Centrar vista
-      </button>
+      <div className="absolute bottom-4 right-4 flex gap-2">
+        <button
+          onClick={resetView}
+          className="rounded-lg border border-ink-600 bg-ink-800/80 px-3 py-1.5 text-xs text-slate-300 backdrop-blur transition hover:bg-ink-700"
+        >
+          Centrar vista
+        </button>
+      </div>
     </div>
   );
 }

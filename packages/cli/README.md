@@ -53,11 +53,16 @@ codegraph analyze . --fail-on-cycles --max-complexity 15   # en CI
 
 ### `codegraph serve [carpeta]`
 
-Analiza la carpeta y levanta un servidor local.
+Analiza la carpeta y levanta la interfaz web local.
 
-- `GET /api/analysis` → el JSON del análisis (ya funciona).
-- La interfaz web se sirve cuando `packages/web` esté compilado (Fase 2).
+| Flag | Efecto |
+|---|---|
+| `-p, --port <n>` | Puerto (default 4173) |
+| `-w, --watch` | Re-analiza automáticamente al guardar archivos (la web se actualiza sola) |
+
+- `GET /api/analysis` → el JSON del análisis (`?fresh=1` fuerza re-análisis).
+- `GET /api/events` → Server-Sent Events; avisa `updated` con `--watch`.
 
 ```bash
-codegraph serve . --port 4173
+codegraph serve . --watch
 ```

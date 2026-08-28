@@ -5,64 +5,83 @@
 ```bash
 npm install
 npm run build
-npm run serve -- "C:\ruta\a\tu-proyecto"
+npm run serve -- "C:\ruta\a\tu-proyecto"       # abrí http://localhost:4173
+npm run serve -- "C:\ruta\a\tu-proyecto" --watch  # + re-analiza al guardar
 ```
 
-Abrí **http://localhost:4173**. El CLI analiza la carpeta al arrancar y la UI
-la dibuja.
-
-Para cambiar de proyecto: `Ctrl+C` y volvé a correr `npm run serve -- <otra carpeta>`.
-El botón **↻ Re-analizar** vuelve a analizar la misma carpeta (útil después de
-cambiar código).
+Para cambiar de proyecto: `Ctrl+C` y volvé a correr con otra carpeta.
 
 ## Cómo se conecta
 
 ```
 navegador (la UI)  ──GET /api/analysis──▶  codegraph serve (Node)
-                                              │
-                                              ▼  usa @codegraph/core
-                                           analiza la carpeta del disco
+                   ◀──SSE /api/events────   (avisa "updated" con --watch)
 ```
 
-La UI **no** analiza nada: solo pide el JSON y lo dibuja. Todo el trabajo pesado
-es del CLI.
+La UI **no** analiza nada: pide el JSON y lo dibuja. Si no hay servidor (deploy
+estático en Vercel), cae a un `demo-analysis.json` de ejemplo y lo marca como
+"modo demo".
 
 ## Qué se ve
 
 ### El grafo (centro)
 
-- Cada **círculo es un archivo**. El tamaño = líneas de código.
-- El **color = dominio** (área del proyecto). La leyenda está en la sidebar.
-- Borde **rojo** = el archivo tiene issues. Borde **violeta** = está en un ciclo.
-- Las **líneas son imports** internos. Punteadas violetas = dependencia circular.
-- **Glow** en un nodo = riesgo alto (mucha complejidad + issues).
+**Vista "Archivos"** — cada círculo es un archivo:
+- tamaño = líneas de código · color = dominio
+- borde rojo = tiene issues · borde violeta = está en un ciclo
+- glow = riesgo alto (complejidad + issues)
+- líneas curvas = imports internos (punteadas violetas = circular)
 
-Interacción: rueda para zoom, arrastrar el fondo para moverse, arrastrar un nodo
-para fijarlo, click en un nodo para abrir el Inspector, hover para resaltar sus
-vecinos, "Centrar vista" para reencuadrar.
+**Vista "Símbolos"** — cada nodo es una función (círculo) o clase (rombo):
+- color = dominio del archivo que la declara
+- líneas = llamadas entre funciones (el call graph)
+
+Interacción: rueda para zoom, arrastrar el fondo para moverte, arrastrar un nodo
+para fijarlo, **hover** resalta los vecinos, **click** abre el Inspector,
+**"Centrar vista"** reencuadra.
 
 ### Sidebar (izquierda)
 
-Health score, métricas, stack detectado, lenguajes, lista de dominios y el
-desglose de qué le baja la nota al proyecto.
+Health score, métricas, stack, lenguajes y la lista de **dominios**. Click en un
+dominio → aísla ese dominio en el grafo (click de nuevo para quitar el filtro).
 
 ### Inspector (derecha, al seleccionar)
 
-Lenguaje y métricas del archivo, sus imports (con la ruta resuelta), sus símbolos
-(funciones/clases, marca `async` y `sin doc`) y sus issues con la línea.
+- Archivo: métricas, dominio, qué **importa** y quién **lo importa** (links
+  clicables para saltar), símbolos, issues.
+- Símbolo: tipo, líneas, a qué funciones **llama** y qué funciones **lo llaman**.
 
 ### Toolbar (arriba)
 
-- **Buscar archivo**: filtra el grafo (los que no matchean se atenúan).
-- **Agrupar por dominio**: separa visualmente las áreas en la pantalla.
-- **Mostrar paquetes externos**: agrega nodos para `react`, `os`, etc.
-- **↻ Re-analizar**: vuelve a correr el análisis.
+- **Archivos / Símbolos** — cambia de vista.
+- **Ctrl/Cmd + K** — buscador rápido de archivos y dominios (salta al nodo).
+- **Agrupar por dominio** — separa las áreas en la pantalla y dibuja un "blob"
+  detrás de cada una.
+- **Paquetes externos** — agrega nodos para `react`, `os`, etc.
+- **• en vivo** — aparece cuando `serve --watch` está conectado.
+- **↻ Re-analizar** — vuelve a correr el análisis.
 
 ## Desarrollo con hot reload
 
 ```bash
 # terminal 1
-npm run serve -- /ruta/a/tu-proyecto
+npm run serve -- /ruta/a/tu-proyecto --watch
 # terminal 2
 npm run dev:web        # Vite en :5173, proxya /api a :4173
+```
+
+## Estructura
+
+```
+src/
+├── App.tsx              # layout + estado
+├── api.ts               # fetch /api/analysis + SSE + fallback a demo
+├── graph-model.ts       # análisis → nodos/links (vista archivos o símbolos)
+├── lib/hull.ts          # el "blob" de cada dominio (convex hull suavizado)
+└── components/
+    ├── ForceGraph.tsx   # el grafo (d3-force + SVG, aristas curvas animadas)
+    ├── Sidebar.tsx      # resumen + dominios clicables
+    ├── Inspector.tsx    # detalle de archivo o símbolo
+    ├── Toolbar.tsx      # barra superior
+    └── CommandPalette.tsx  # Ctrl/Cmd + K
 ```

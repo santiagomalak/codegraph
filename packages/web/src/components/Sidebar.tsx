@@ -21,7 +21,15 @@ function Stat({ label, value, accent }: { label: string; value: string | number;
   );
 }
 
-export function Sidebar({ analysis }: { analysis: ProjectAnalysis }) {
+export function Sidebar({
+  analysis,
+  domainFilter,
+  onPickDomain,
+}: {
+  analysis: ProjectAnalysis;
+  domainFilter: string | null;
+  onPickDomain: (id: string) => void;
+}) {
   const s = analysis.summary;
   const langs = Object.entries(s.filesByLanguage).sort((a, b) => b[1] - a[1]);
   const maxLang = Math.max(...langs.map(([, n]) => n), 1);
@@ -98,20 +106,23 @@ export function Sidebar({ analysis }: { analysis: ProjectAnalysis }) {
 
       <div>
         <div className="mb-1.5 text-xs uppercase tracking-widest text-slate-500">
-          Dominios ({analysis.graph.domains.length})
+          Dominios ({analysis.graph.domains.length}) · click para aislar
         </div>
-        <div className="flex flex-col gap-1">
+        <div className="flex flex-col gap-0.5">
           {[...analysis.graph.domains]
             .sort((a, b) => b.files.length - a.files.length)
             .map((d) => (
-              <div key={d.id} className="flex items-center gap-2 text-xs">
-                <span
-                  className="h-2.5 w-2.5 shrink-0 rounded-full"
-                  style={{ background: d.color }}
-                />
-                <span className="flex-1 truncate text-slate-300">{d.label}</span>
+              <button
+                key={d.id}
+                onClick={() => onPickDomain(d.id)}
+                className={`flex items-center gap-2 rounded-md px-2 py-1 text-xs transition ${
+                  domainFilter === d.id ? 'bg-indigo-500/15 text-indigo-200' : 'hover:bg-ink-800'
+                }`}
+              >
+                <span className="h-2.5 w-2.5 shrink-0 rounded-full" style={{ background: d.color }} />
+                <span className="flex-1 truncate text-left text-slate-300">{d.label}</span>
                 <span className="text-slate-500">{d.files.length}</span>
-              </div>
+              </button>
             ))}
         </div>
       </div>

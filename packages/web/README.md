@@ -4,56 +4,55 @@ La interfaz web de Code Graph Unified. Muestra el grafo de conocimiento del
 proyecto de forma interactiva.
 
 No analiza nada por su cuenta: le pide el análisis al CLI (`codegraph serve`) por
-`GET /api/analysis`.
+`GET /api/analysis`. Si no hay servidor (deploy estático), usa un
+`demo-analysis.json` de ejemplo.
 
 ## Cómo verla
 
 ```bash
 # desde la raíz del monorepo
 npm run build
-npm run serve -- /ruta/a/tu-proyecto
-# abrir http://localhost:4173
+npm run serve -- /ruta/a/tu-proyecto           # http://localhost:4173
+npm run serve -- /ruta/a/tu-proyecto --watch   # + live reload
 ```
 
 ## Desarrollo
 
-Necesita dos procesos:
-
 ```bash
-# terminal 1 — el CLI analizando algún proyecto, en el puerto 4173
-npm run serve -- /ruta/a/tu-proyecto
-
-# terminal 2 — Vite con hot reload en :5173 (proxya /api a :4173)
-npm run dev:web
+npm run serve -- /ruta/a/tu-proyecto --watch   # terminal 1 (API :4173)
+npm run dev:web                                 # terminal 2 (Vite :5173)
 ```
 
-## Qué muestra hoy (Fase 2, v1)
+## Qué muestra
 
-- **Grafo de archivos** con simulación de fuerzas: tamaño = líneas de código,
-  color = dominio, borde rojo = tiene issues, borde violeta = parte de un ciclo.
-- **Aristas** = imports internos. Las circulares van punteadas en violeta.
-- **Sidebar**: health score, métricas, stack, lenguajes, dominios, qué baja la nota.
-- **Inspector** (click en un nodo): lenguaje, métricas, imports resueltos,
-  símbolos, issues.
-- **Toolbar**: buscar archivo, "Agrupar por dominio", mostrar externos, re-analizar.
+- **Vista Archivos**: nodo = archivo (tamaño = LOC, color = dominio, borde rojo =
+  issues, borde violeta = ciclo, glow = riesgo). Aristas curvas = imports.
+- **Vista Símbolos**: nodo = función (círculo) o clase (rombo). Aristas = llamadas.
+- **Sidebar**: health score, métricas, stack, lenguajes, dominios (clic para aislar).
+- **Inspector**: detalle del archivo/símbolo, con links clicables a sus vecinos.
+- **Ctrl/Cmd + K**: buscador rápido.
+- **Toolbar**: agrupar por dominio, mostrar externos, re-analizar, indicador "en vivo".
 - Zoom/pan, arrastre de nodos, auto-encuadre.
+
+Detalle completo en [`docs/05-la-interfaz.md`](../../docs/05-la-interfaz.md).
 
 ## Estructura
 
 ```
 src/
 ├── App.tsx              # layout + estado
-├── api.ts               # fetch a /api/analysis
-├── graph-model.ts       # análisis → nodos/links para la simulación
+├── api.ts               # fetch /api/analysis + SSE + fallback a demo
+├── graph-model.ts       # análisis → nodos/links (archivos o símbolos)
+├── lib/hull.ts          # el "blob" de cada dominio
 └── components/
     ├── ForceGraph.tsx   # el grafo (d3-force + SVG)
-    ├── Sidebar.tsx      # resumen del proyecto
-    ├── Inspector.tsx    # detalle del archivo seleccionado
-    └── Toolbar.tsx      # barra superior
+    ├── Sidebar.tsx
+    ├── Inspector.tsx
+    ├── Toolbar.tsx
+    └── CommandPalette.tsx
 ```
 
 ## Próximo
 
-- Capa de símbolos (call graph) conmutable.
-- Render en canvas/WebGL para proyectos grandes.
+- Render en canvas/WebGL para proyectos muy grandes.
 - Panel de IA ("explicá este nodo / este dominio").
