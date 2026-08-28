@@ -60,12 +60,14 @@ export function requestEmbeddedAnalysis(): Promise<ProjectAnalysis> {
     };
     listeners.add(cb);
     api.postMessage({ type: 'ready' });
+    // Si el primer análisis tarda más que esto, `watchForUpdates` (que escucha
+    // por postMessage) lo recupera cuando llega.
     setTimeout(() => {
       if (!latest) {
         listeners.delete(cb);
-        reject(new Error('la extensión no respondió'));
+        reject(new Error('el análisis está tardando… (se actualiza solo al terminar)'));
       }
-    }, 15000);
+    }, 30000);
   });
 }
 

@@ -40,6 +40,7 @@ export type SnapshotsState =
 
 /** Estado de los snapshots históricos. `compute: true` arranca el cálculo. */
 export async function fetchSnapshots(compute = false): Promise<SnapshotsState> {
+  if (isEmbedded()) return { status: 'unavailable' }; // en VS Code no hay /api
   try {
     const res = await fetch('/api/snapshots', { method: compute ? 'POST' : 'GET' });
     if (res.ok) return (await res.json()) as SnapshotsState;
