@@ -127,25 +127,37 @@ export function ForceGraph({
     };
   }, []);
 
-  const fitView = useCallback(() => {
+  const fitView = useCallback((animated = false) => {
     const svg = svgRef.current;
     const zoom = zoomRef.current;
-    const ns = nodesRef.current.filter((n) => n.x != null && n.y != null);
-    if (!svg || !zoom || ns.length === 0) return;
-    const pad = 80;
+    const all = nodesRef.current.filter((n) => n.x != null && n.y != null);
+    if (!svg || !zoom || all.length === 0) return;
+
+    // Ignoramos el 4% de nodos más lejanos del centroide (outliers sueltos) para
+    // que un par de nodos perdidos no achiquen todo el grafo.
+    const cx = all.reduce((s, n) => s + n.x!, 0) / all.length;
+    const cy = all.reduce((s, n) => s + n.y!, 0) / all.length;
+    const sorted = [...all].sort(
+      (a, b) => Math.hypot(a.x! - cx, a.y! - cy) - Math.hypot(b.x! - cx, b.y! - cy),
+    );
+    const ns = sorted.slice(0, Math.max(1, Math.floor(sorted.length * 0.96)));
+
+    const pad = 60;
     const minX = Math.min(...ns.map((n) => n.x!)) - pad;
     const maxX = Math.max(...ns.map((n) => n.x!)) + pad;
     const minY = Math.min(...ns.map((n) => n.y!)) - pad;
     const maxY = Math.max(...ns.map((n) => n.y!)) + pad;
     const w = svg.clientWidth || 800;
     const h = svg.clientHeight || 600;
-    const k = Math.max(0.05, Math.min(1.8, Math.min(w / (maxX - minX), h / (maxY - minY))));
+    const k = Math.max(0.2, Math.min(1.3, Math.min(w / (maxX - minX), h / (maxY - minY))));
     const tx = w / 2 - (k * (minX + maxX)) / 2;
     const ty = h / 2 - (k * (minY + maxY)) / 2;
-    select(svg)
-      .transition()
-      .duration(450)
-      .call(zoom.transform as never, zoomIdentity.translate(tx, ty).scale(k));
+    const t = zoomIdentity.translate(tx, ty).scale(k);
+    if (animated) {
+      select(svg).transition().duration(400).call(zoom.transform as never, t);
+    } else {
+      zoom.transform(select(svg) as never, t);
+    }
   }, []);
 
   // ── Simulación ─────────────────────────────────────────────────────────
@@ -156,6 +168,17 @@ export function ForceGraph({
     linksRef.current = links;
 
     const symbolMode = graph.mode === 'symbols';
+    // Grado de cada nodo: los sueltos necesitan más empuje al centro para no
+    // volar lejos, pero suave para no colapsar el grafo conectado.
+    const degree = new Map<string, number>();
+    for (const l of links) {
+      const s = typeof l.source === 'string' ? l.source : (l.source as VizNode).id;
+      const t = typeof l.target === 'string' ? l.target : (l.target as VizNode).id;
+      degree.set(s, (degree.get(s) ?? 0) + 1);
+      degree.set(t, (degree.get(t) ?? 0) + 1);
+    }
+    const pullStrength = (d: VizNode) => ((degree.get(d.id) ?? 0) === 0 ? 0.14 : 0.045);
+
     const sim = forceSimulation<VizNode>(nodes)
       .force(
         'link',
@@ -164,11 +187,11 @@ export function ForceGraph({
           .distance(symbolMode ? 55 : 85)
           .strength(symbolMode ? 0.5 : 0.4),
       )
-      .force('charge', forceManyBody().strength(symbolMode ? -160 : -240).distanceMax(600))
+      .force('charge', forceManyBody().strength(symbolMode ? -170 : -260).distanceMax(600))
       .force('collide', forceCollide<VizNode>((d) => nodeRadius(d) + (symbolMode ? 4 : 8)))
       .force('center', forceCenter(size.w / 2, size.h / 2))
-      .force('x', forceX<VizNode>(size.w / 2).strength(0.04))
-      .force('y', forceY<VizNode>(size.h / 2).strength(0.04))
+      .force('x', forceX<VizNode>(size.w / 2).strength(pullStrength))
+      .force('y', forceY<VizNode>(size.h / 2).strength(pullStrength))
       .on('tick', rerender);
 
     if (groupByDomain && !symbolMode) {
@@ -189,25 +212,45 @@ export function ForceGraph({
     simRef.current = sim;
     userInteractedRef.current = false;
     sim.alpha(1).restart();
-    sim.on('end', () => {
+
+    // Reencuadrar varias veces mientras el layout se acomoda. Mientras el usuario
+    // no toque nada, "auto" = seguir el grafo hasta que se asiente.
+    const fitIfAuto = () => {
       if (!userInteractedRef.current) fitView();
-    });
+    };
+    const timers = [600, 1400, 2600, 4200].map((ms) => setTimeout(fitIfAuto, ms));
+    sim.on('end', fitIfAuto);
+
     return () => {
       sim.stop();
+      timers.forEach(clearTimeout);
     };
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [graph, groupByDomain]);
 
+  const lastSize = useRef({ w: 0, h: 0 });
   useEffect(() => {
     const sim = simRef.current;
     if (!sim) return;
+    // Ignorar cambios chicos (evita reencuadres nerviosos).
+    if (Math.abs(size.w - lastSize.current.w) < 24 && Math.abs(size.h - lastSize.current.h) < 24) {
+      return;
+    }
+    lastSize.current = { w: size.w, h: size.h };
+
     sim.force('center', forceCenter(size.w / 2, size.h / 2));
-    sim.alpha(0.15).restart();
+    const fx = sim.force('x') as ReturnType<typeof forceX<VizNode>> | undefined;
+    const fy = sim.force('y') as ReturnType<typeof forceY<VizNode>> | undefined;
+    if (fx && fy && !groupByDomain) {
+      fx.x(size.w / 2);
+      fy.y(size.h / 2);
+    }
+    sim.alpha(0.1).restart();
     if (!userInteractedRef.current) {
-      const id = setTimeout(fitView, 350);
+      const id = setTimeout(fitView, 700);
       return () => clearTimeout(id);
     }
-  }, [size.w, size.h, fitView]);
+  }, [size.w, size.h, groupByDomain, fitView]);
 
   // ── Arrastre ───────────────────────────────────────────────────────────
   const dragState = useRef<{ node: VizNode | null }>({ node: null });
@@ -248,7 +291,7 @@ export function ForceGraph({
 
   const resetView = () => {
     userInteractedRef.current = false;
-    fitView();
+    fitView(true);
   };
 
   // ── Estado derivado para el render ─────────────────────────────────────
@@ -259,7 +302,9 @@ export function ForceGraph({
     searchLower !== '' && (n.path ?? n.label).toLowerCase().includes(searchLower);
   const anyMatch = searchLower !== '' && nodes.some(matches);
 
-  const focusId = hoverId ?? selectedId;
+  // El foco solo cuenta si el nodo existe en la vista actual (si no, no dimear nada).
+  const rawFocus = hoverId ?? selectedId;
+  const focusId = rawFocus && nodes.some((n) => n.id === rawFocus) ? rawFocus : null;
   const neighbors = focusId ? (adjacency.get(focusId) ?? new Set<string>()) : null;
   const isDimmed = (id: string) => {
     if (anyMatch) return !nodes.some((n) => n.id === id && matches(n));

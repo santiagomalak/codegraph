@@ -155,7 +155,7 @@ export function buildVizGraph(analysis: ProjectAnalysis, opts: BuildOptions): Vi
     }
   }
 
-  const links: VizLink[] = [];
+  let links: VizLink[] = [];
   for (const e of analysis.graph.edges) {
     if (e.type !== 'imports') continue;
     if (visible.has(e.source) && visible.has(e.target)) {
@@ -168,7 +168,25 @@ export function buildVizGraph(analysis: ProjectAnalysis, opts: BuildOptions): Vi
     }
   }
 
-  return { mode: 'files', nodes, links, domains };
+  // Los docs y configs sin ninguna dependencia solo ensucian la vista de imports.
+  const degree = new Map<string, number>();
+  for (const l of links) {
+    degree.set(l.source as string, (degree.get(l.source as string) ?? 0) + 1);
+    degree.set(l.target as string, (degree.get(l.target as string) ?? 0) + 1);
+  }
+  const kept = new Set(
+    nodes
+      .filter(
+        (n) =>
+          (degree.get(n.id) ?? 0) > 0 ||
+          (n.language !== 'markdown' && n.language !== 'json' && n.kind !== 'external'),
+      )
+      .map((n) => n.id),
+  );
+  const filtered = nodes.filter((n) => kept.has(n.id));
+  links = links.filter((l) => kept.has(l.source as string) && kept.has(l.target as string));
+
+  return { mode: 'files', nodes: filtered, links, domains };
 }
 
 /** Radio de un nodo según su "peso". */

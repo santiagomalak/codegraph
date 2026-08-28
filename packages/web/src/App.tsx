@@ -137,7 +137,10 @@ export function App() {
     <div className="flex h-full flex-col">
       <Toolbar
         mode={mode}
-        setMode={setMode}
+        setMode={(m) => {
+          setMode(m);
+          setSelected(null);
+        }}
         search={search}
         setSearch={setSearch}
         groupByDomain={groupByDomain}
