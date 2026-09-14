@@ -15,7 +15,7 @@
   "dependencies": {
     "@codegraph/core": "3.0.0",
     "@modelcontextprotocol/sdk": "^1.20.0",
-    "zod": "^3.25.0"
+    "zod": "^4.6.2"
   },
   "devDependencies": {
     "@types/node": "^20.11.0",
