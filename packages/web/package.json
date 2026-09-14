@@ -35,7 +35,7 @@
     "postcss": "^8.4.35",
     "tailwindcss": "^3.4.1",
     "tree-sitter-wasms": "^0.1.11",
-    "typescript": "^5.3.3",
+    "typescript": "^7.0.2",
     "vite": "^7.1.0",
     "vitest": "^3.2.0",
     "web-tree-sitter": "^0.22.6"
