@@ -6,6 +6,10 @@ node_modules/
 # Salida del propio analizador
 .codegraph/
 
+# Coverage reports
+coverage/
+packages/*/coverage/
+
 # Builds de los paquetes
 packages/*/dist/
 
