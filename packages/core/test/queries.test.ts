@@ -1,5 +1,5 @@
 import { describe, it, expect, beforeAll } from 'vitest';
-import { analyzeProject } from '../src/analyze.js';
+import { analyzeProject } from './helper.js';
 import { toCodemapMarkdown } from '../src/exporters/codemap.js';
 import { toGraphJson } from '../src/exporters/graph-json.js';
 import { dependenciesOf, dependentsOf, impactOf, findSymbol, fileDetail } from '../src/queries.js';

@@ -26,7 +26,8 @@ proyecto en áreas, cruza el historial de git y te devuelve:
 - **13 herramientas MCP** para que Claude consulte el grafo sin cargar el repo entero.
 
 Todo corre **local**. No sube tu código a ningún lado, no necesita API keys, no
-tiene backend.
+tiene backend. La web hosteada analiza la carpeta que le des **dentro de tu
+navegador** — los archivos no salen de tu máquina.
 
 ## Qué hace
 
@@ -45,6 +46,18 @@ tiene backend.
 | **Health score** | 0–100 con el desglose de qué le baja la nota (ciclos, complejidad, archivos gigantes, poca doc…). |
 
 ## Empezar
+
+### Probar en la web (sin instalar nada)
+
+Entrá a **[codegraph-delta.vercel.app](https://codegraph-delta.vercel.app)**,
+arrastrá una carpeta (o tocá **📂 Analizar una carpeta**) y listo. El análisis
+corre en tu navegador con tree-sitter compilado a WebAssembly; nada se sube.
+
+Lo que la web no puede hacer (sí el CLI y la extensión de VS Code): la capa de
+git — hotspots, timeline, snapshots — porque el navegador no ve el `.git`.
+Detalle en [`docs/10-analisis-en-el-navegador.md`](./docs/10-analisis-en-el-navegador.md).
+
+### Instalar
 
 Requiere **Node 20+** y **git** (opcional, para la capa de historial).
 
@@ -200,6 +213,10 @@ En camino:
   [`packages/vscode/README.md`](./packages/vscode/README.md).
 - **Panel de IA en la web** — "explicá este nodo / este dominio" desde la UI.
 - Más lenguajes · publicar los paquetes en npm.
+
+Hecho hace poco: **la web hosteada analiza tu carpeta en el navegador** (elegís o
+arrastrás una carpeta, sin servidor). Ver
+[`docs/10-analisis-en-el-navegador.md`](./docs/10-analisis-en-el-navegador.md).
 
 ## Contribuir
 

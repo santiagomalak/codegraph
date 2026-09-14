@@ -11,16 +11,25 @@ npm run serve -- "C:\ruta\a\tu-proyecto" --watch  # + re-analiza al guardar
 
 Para cambiar de proyecto: `Ctrl+C` y volvé a correr con otra carpeta.
 
-## Cómo se conecta
+## De dónde saca el análisis
+
+La UI puede mostrar el grafo desde cuatro orígenes:
+
+| Origen | Cuándo | Quién analiza |
+|---|---|---|
+| **server** | `codegraph serve` corriendo (o `dev:web` que proxya `/api`) | el CLI (Node) |
+| **folder** | elegís/arrastrás una carpeta en la web | **el navegador** (ver [doc 10](./10-analisis-en-el-navegador.md)) |
+| **demo** | deploy estático, nadie eligió nada | pre-generado (`demo-analysis.json`) |
+| **embedded** | dentro del webview de la extensión de VS Code | la extensión (Node) |
 
 ```
-navegador (la UI)  ──GET /api/analysis──▶  codegraph serve (Node)
-                   ◀──SSE /api/events────   (avisa "updated" con --watch)
+server:   navegador (UI) ──GET /api/analysis──▶ codegraph serve (Node)
+                          ◀──SSE /api/events──   (avisa "updated" con --watch)
+folder:   navegador (UI) ──▶ analyzeProject() en el mismo navegador (tree-sitter WASM)
 ```
 
-La UI **no** analiza nada: pide el JSON y lo dibuja. Si no hay servidor (deploy
-estático en Vercel), cae a un `demo-analysis.json` de ejemplo y lo marca como
-"modo demo".
+Con **server** y **embedded** la UI solo dibuja el JSON que le pasan. Con
+**folder** la UI corre el motor completo; sin `.git` no hay hotspots/timeline.
 
 ## Qué se ve
 
@@ -68,7 +77,8 @@ dominio → aísla ese dominio en el grafo (click de nuevo para quitar el filtro
   reales* (re-analiza ~20 puntos de la historia) y muestra el health, la
   complejidad y los dominios **reales** de la época del playhead.
 - **• en vivo** — aparece cuando `serve --watch` está conectado.
-- **↻ Re-analizar** — vuelve a correr el análisis.
+- **📂 Carpeta** — elegí (o arrastrá) una carpeta para analizarla en el navegador.
+- **↻ Re-analizar** — vuelve a correr el análisis (solo con `codegraph serve`).
 
 ## Desarrollo con hot reload
 
@@ -84,7 +94,8 @@ npm run dev:web        # Vite en :5173, proxya /api a :4173
 ```
 src/
 ├── App.tsx              # layout + estado
-├── api.ts               # fetch /api/analysis + SSE + fallback a demo
+├── api.ts               # orígenes server / demo / embedded (SSE con --watch)
+├── analyze-folder.ts    # leer una carpeta del disco y analizarla en el navegador
 ├── graph-model.ts       # análisis → nodos/links (vista archivos o símbolos)
 ├── lib/hull.ts          # el "blob" de cada dominio (convex hull suavizado)
 └── components/

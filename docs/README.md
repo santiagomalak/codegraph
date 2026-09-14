@@ -16,6 +16,7 @@ y pensado para que lo entiendas sin ser experto en compiladores.
 | [07 · La capa git](./07-capa-git.md) | Hotspots, acoplamiento oculto, timeline |
 | [08 · Guía de uso](./08-uso.md) | Todos los comandos, flags y flujos de trabajo |
 | [09 · Lenguajes y casos de uso](./09-lenguajes-y-casos.md) | Qué se saca de cada lenguaje y para qué proyectos sirve |
+| [10 · Analizar en el navegador](./10-analisis-en-el-navegador.md) | Cómo la web hosteada analiza tu carpeta sin backend |
 
 Ver también:
 - [`../README.md`](../README.md) — presentación y arranque rápido
@@ -76,3 +77,7 @@ panel de IA en la web. Ver [01 · Visión y fases](./01-vision-y-fases.md).
 - **Extensión de VS Code** (grafo lateral, "explicá este archivo", marcas de hotspot).
 - Panel de IA en la web ("explicá este nodo / dominio").
 - Publicar los paquetes en npm.
+
+✅ **Análisis en el navegador** — la web hosteada analiza la carpeta que le des
+sin backend (tree-sitter en WebAssembly). Ver
+[10 · Analizar en el navegador](./10-analisis-en-el-navegador.md).

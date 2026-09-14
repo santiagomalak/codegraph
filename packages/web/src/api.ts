@@ -1,35 +1,58 @@
 /**
- * api.ts — Habla con `codegraph serve`.
+ * api.ts — De dónde saca la web el análisis.
  *
- * - En producción local la UI se sirve desde el mismo server del CLI → `/api/*`.
- * - En dev, Vite proxya `/api` al CLI (ver vite.config.ts).
- * - Si no hay server (ej: deploy estático en Vercel), cae a `/demo-analysis.json`
- *   y marca el resultado como demo.
+ * Tres orígenes posibles:
+ *   - 'server' → `codegraph serve` corriendo (local, o Vite proxya `/api`).
+ *   - 'folder' → el usuario eligió una carpeta y se analizó en el navegador
+ *     (ver `analyze-folder.ts`).
+ *   - 'demo'   → el análisis de ejemplo (`/demo-analysis.json`), para el deploy
+ *     estático de Vercel cuando nadie eligió nada.
+ * Dentro del webview de VS Code el análisis llega por `postMessage` (`embedded`).
  */
 
 import type { ProjectAnalysis, SnapshotSeries } from '@codegraph/core';
 import { isEmbedded, onEmbeddedAnalysis, requestEmbeddedAnalysis } from './vscode.js';
 
+export type AnalysisSource = 'server' | 'folder' | 'demo' | 'embedded';
+
 export interface LoadResult {
   analysis: ProjectAnalysis;
-  isDemo: boolean;
-  /** `true` si corre dentro de la extensión de VS Code (no hay server). */
-  embedded?: boolean;
+  source: AnalysisSource;
 }
 
-export async function fetchAnalysis(fresh = false): Promise<LoadResult> {
-  if (isEmbedded()) {
-    return { analysis: await requestEmbeddedAnalysis(), isDemo: false, embedded: true };
-  }
+/** Si corre dentro de VS Code, pide el análisis a la extensión. Si no, `null`. */
+export async function fetchEmbeddedAnalysis(): Promise<LoadResult | null> {
+  if (!isEmbedded()) return null;
+  return { analysis: await requestEmbeddedAnalysis(), source: 'embedded' };
+}
+
+/**
+ * Pregunta a `codegraph serve`. Devuelve `null` si no hay servidor.
+ *
+ * En un deploy estático `/api/analysis` devuelve el `index.html` (por el rewrite
+ * de SPA), así que además del `ok` chequeamos que la respuesta sea JSON.
+ */
+export async function fetchServerAnalysis(fresh = false): Promise<LoadResult | null> {
   try {
-    const res = await fetch(`/api/analysis${fresh ? '?fresh=1' : ''}`);
-    if (res.ok) return { analysis: (await res.json()) as ProjectAnalysis, isDemo: false };
+    const res = await fetch(`/api/analysis${fresh ? '?fresh=1' : ''}`, {
+      headers: { accept: 'application/json' },
+      signal: AbortSignal.timeout(fresh ? 120_000 : 4000),
+    });
+    const isJson = res.headers.get('content-type')?.includes('application/json');
+    if (res.ok && isJson) {
+      return { analysis: (await res.json()) as ProjectAnalysis, source: 'server' };
+    }
   } catch {
-    /* sin server: probamos el demo */
+    /* sin server */
   }
-  const demo = await fetch('/demo-analysis.json');
-  if (!demo.ok) throw new Error('No hay servidor (`codegraph serve`) ni demo disponible.');
-  return { analysis: (await demo.json()) as ProjectAnalysis, isDemo: true };
+  return null;
+}
+
+/** Carga el análisis de ejemplo. Lanza si no está (deploy sin `npm run demo`). */
+export async function fetchDemoAnalysis(): Promise<LoadResult> {
+  const demo = await fetch('demo-analysis.json');
+  if (!demo.ok) throw new Error('No hay análisis de ejemplo disponible.');
+  return { analysis: (await demo.json()) as ProjectAnalysis, source: 'demo' };
 }
 
 export type SnapshotsState =

@@ -39,5 +39,26 @@ export {
   IGNORE_FILES,
 } from './languages.js';
 
+// Node-only utilities (disk, git, config, snapshots)
+export {
+  discoverFiles,
+  isWithinRoot,
+  validateRootDir,
+  type DiscoverResult,
+  readGitHistory,
+  runGit,
+  buildTimeline,
+  buildCoupling,
+  TIMELINE_BUCKETS,
+  COUPLING,
+  type GitHistoryResult,
+  readProjectConfig,
+  buildSnapshots,
+  pickEvenly,
+  toSnapshotPoint,
+  type SnapshotOptions,
+  nodeWasmDir,
+} from './node/index.js';
+
 // Todos los tipos del dominio
 export type * from './model.js';

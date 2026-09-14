@@ -29,9 +29,16 @@ function normalizePath(path: string): string {
 
 export async function analyzeProject(
   sources: SourceFile[],
-  options: AnalyzeOptions = {},
+  options: AnalyzeOptions,
 ): Promise<ProjectAnalysis> {
   const start = Date.now();
+
+  if (!options.wasmDir) {
+    throw new Error(
+      'analyzeProject: falta `wasmDir` (la carpeta con los `.wasm` de tree-sitter). ' +
+        'En Node usá `nodeWasmDir()` de `@codegraph/core/node`; en el navegador, una URL servida por la web.',
+    );
+  }
 
   const usable = sources
     .map((s) => ({ path: normalizePath(s.path), content: s.content }))

@@ -400,10 +400,12 @@ export interface AnalyzeOptions {
   /** Nombre del proyecto. Si se omite, se infiere del primer path. */
   projectName?: string;
   /**
-   * Carpeta donde están los `.wasm` de las gramáticas tree-sitter.
-   * En Node se detecta solo; en el navegador hay que pasarla (ej: "/wasm").
+   * Carpeta (o URL) donde están los `.wasm` de tree-sitter: las gramáticas y el
+   * runtime `tree-sitter.wasm`. Obligatoria y la pone quien llama:
+   *   - En Node: `nodeWasmDir()` de `@codegraph/core/node`.
+   *   - En el navegador: una URL servida por la web (ej: "/wasm").
    */
-  wasmDir?: string;
+  wasmDir: string;
   /** Callback de progreso, se llama una vez por archivo parseado. */
   onProgress?: (done: number, total: number, path: string) => void;
   /**

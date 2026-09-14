@@ -8,7 +8,7 @@
 
 import { basename } from 'node:path';
 import { analyzeProject, type ProjectAnalysis } from '@codegraph/core';
-import { discoverFiles, readGitHistory, readProjectConfig } from '@codegraph/core/node';
+import { discoverFiles, nodeWasmDir, readGitHistory, readProjectConfig } from '@codegraph/core/node';
 
 export class Project {
   private analysis: ProjectAnalysis | null = null;
@@ -30,6 +30,7 @@ export class Project {
         );
         const result = await analyzeProject(files, {
           projectName: basename(this.rootDir),
+          wasmDir: nodeWasmDir(),
           git: Object.keys(git).length > 0 ? git : undefined,
           timeline: timeline ?? undefined,
           coupling,

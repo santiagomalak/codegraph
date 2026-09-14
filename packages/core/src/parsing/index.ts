@@ -23,7 +23,7 @@ import { LANGUAGE_SPECS } from './language-specs.js';
 /** Más grande que esto no se parsea con AST (protege memoria/tiempo). */
 const MAX_PARSE_BYTES = 1_500_000;
 
-export async function parseFile(file: SourceFile, wasmDir?: string): Promise<ParsedFile> {
+export async function parseFile(file: SourceFile, wasmDir: string): Promise<ParsedFile> {
   const language = languageOf(file.path);
 
   const base: ParsedFile = {

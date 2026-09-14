@@ -11,3 +11,6 @@ packages/*/dist/
 
 # Análisis de demo (se genera con `npm run demo`)
 packages/web/public/demo-analysis.json
+
+# .wasm de tree-sitter para la web (se copian desde node_modules en pre-build)
+packages/web/public/wasm/

@@ -8,13 +8,14 @@ archivos ya leídos y devuelve datos. Corre igual en Node (el CLI) y en el naveg
 
 ```ts
 import { analyzeProject } from '@codegraph/core';
+import { nodeWasmDir } from '@codegraph/core/node'; // en Node; en el navegador, una URL
 
 const analysis = await analyzeProject(
   [
     { path: 'src/app.ts', content: '…' },
     { path: 'src/utils.ts', content: '…' },
   ],
-  { projectName: 'mi-app' },
+  { projectName: 'mi-app', wasmDir: nodeWasmDir() },
 );
 
 analysis.files    // ParsedFile[]  — un objeto por archivo (imports, símbolos, issues, métricas)
@@ -65,7 +66,7 @@ src/
 │   └── summary.ts           # ProjectSummary + stack + health + hotspots
 ├── git.ts                   # cruza churn + complejidad → hotspot
 ├── queries.ts               # consultas puras sobre el análisis (las usa el MCP)
-├── node-fs.ts               # discoverFiles + readGitHistory (solo Node → @codegraph/core/node)
+├── node-fs.ts               # discoverFiles + readGitHistory + nodeWasmDir (solo Node → @codegraph/core/node)
 └── exporters/
     ├── codemap.ts           # ProjectAnalysis → CODEMAP.md (con niveles)
     └── graph-json.ts        # grafo → JSON slim o completo
@@ -81,8 +82,10 @@ src/
 
 ## Notas
 
-- Los `.wasm` de las gramáticas vienen del paquete `tree-sitter-wasms`. En Node se
-  encuentran solos; en el navegador hay que servirlos y pasar `wasmDir`.
+- `analyzeProject` necesita `wasmDir`: la carpeta (o URL) con los `.wasm` de
+  tree-sitter (gramáticas de `tree-sitter-wasms` + el runtime `tree-sitter.wasm`
+  de `web-tree-sitter`). En Node: `nodeWasmDir()` de `@codegraph/core/node`. En el
+  navegador: una URL que sirva esos archivos (la web los deja en `/wasm`).
 - Archivos de más de ~1,5 MB no se parsean con AST (se listan igual, con `parseError`).
 - Si hay más de 6000 símbolos en total, el grafo omite los nodos de símbolo para no
   volverse ilegible (los archivos y dominios siguen).

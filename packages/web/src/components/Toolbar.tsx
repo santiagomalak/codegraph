@@ -21,8 +21,11 @@ interface Props {
   clearDomainFilter: () => void;
   domainLabel: string | null;
   onRefresh: () => void;
+  canRefresh: boolean;
   refreshing: boolean;
   watching: boolean;
+  /** Si está, muestra el botón "📂 Carpeta" (no en el webview de VS Code). */
+  onPickFolder?: () => void;
   onOpenPalette: () => void;
   hasTimeline: boolean;
   timelineOpen: boolean;
@@ -146,13 +149,23 @@ export function Toolbar(props: Props) {
             en vivo
           </span>
         )}
-        <button
-          onClick={props.onRefresh}
-          disabled={props.refreshing}
-          className="rounded-md border border-ink-600 bg-ink-800 px-3 py-1.5 text-slate-300 transition hover:bg-ink-700 disabled:opacity-50"
-        >
-          {props.refreshing ? 'Analizando…' : '↻ Re-analizar'}
-        </button>
+        {props.onPickFolder && (
+          <button
+            onClick={props.onPickFolder}
+            className="rounded-md border border-ink-600 bg-ink-800 px-3 py-1.5 text-slate-300 transition hover:bg-ink-700"
+          >
+            📂 Carpeta
+          </button>
+        )}
+        {props.canRefresh && (
+          <button
+            onClick={props.onRefresh}
+            disabled={props.refreshing}
+            className="rounded-md border border-ink-600 bg-ink-800 px-3 py-1.5 text-slate-300 transition hover:bg-ink-700 disabled:opacity-50"
+          >
+            {props.refreshing ? 'Analizando…' : '↻ Re-analizar'}
+          </button>
+        )}
       </div>
     </header>
   );

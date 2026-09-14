@@ -1,5 +1,5 @@
 import { describe, it, expect } from 'vitest';
-import { analyzeProject } from '../src/analyze.js';
+import { analyzeProject } from './helper.js';
 import type { GitStats, SourceFile } from '../src/model.js';
 
 const files: SourceFile[] = [

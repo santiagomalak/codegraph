@@ -9,7 +9,7 @@ Un solo repositorio con cuatro paquetes que comparten el motor. Se maneja con
 codegraph/
 ├── package.json          # raíz: workspaces + scripts globales
 ├── .mcp.json             # config del servidor MCP para Claude Code
-├── vercel.json           # build del deploy estático (la web en modo demo)
+├── vercel.json           # build del deploy estático (web: análisis en el navegador + ejemplo)
 ├── packages/
 │   ├── core/             # @codegraph/core — el motor de análisis
 │   ├── cli/              # @codegraph/cli  — el comando `codegraph`
@@ -78,11 +78,12 @@ Ver [`06-servidor-mcp.md`](./06-servidor-mcp.md).
 
 ### `@codegraph/web` — la interfaz
 
-SPA en **React + Vite + Tailwind + d3-force**. No analiza nada: le pide el JSON al
-CLI (`GET /api/analysis`) y lo dibuja. Si no hay servidor (deploy estático en
-Vercel), cae a un `demo-analysis.json` de ejemplo y lo marca como "modo demo".
-Dentro del webview de la extensión de VS Code, el análisis llega por
-`postMessage` en vez de `fetch` (ver `src/vscode.ts`).
+SPA en **React + Vite + Tailwind + d3-force**. El análisis puede venir de cuatro
+orígenes: `codegraph serve` (`GET /api/analysis`), una **carpeta que el usuario
+elige y se analiza en el navegador** (`src/analyze-folder.ts`, tree-sitter en
+WASM), el `demo-analysis.json` de ejemplo (deploy estático sin elección), o la
+extensión de VS Code por `postMessage` (`src/vscode.ts`). Con los dos primeros no
+hay backend. Detalle en [`10-analisis-en-el-navegador.md`](./10-analisis-en-el-navegador.md).
 
 Ver [`05-la-interfaz.md`](./05-la-interfaz.md).
 
@@ -129,7 +130,7 @@ no arrastrar `node:*` al bundle.
 | Tests | Vitest |
 | Build | `tsc` (core/cli/mcp) · Vite (web) |
 | CI | GitHub Actions (build → typecheck → test → analiza el propio repo → handshake MCP) |
-| Deploy | Vercel (estático: la web en modo demo) |
+| Deploy | Vercel (estático; la web analiza carpetas en el navegador, sin backend) |
 
 ## Scripts globales (desde la raíz)
 

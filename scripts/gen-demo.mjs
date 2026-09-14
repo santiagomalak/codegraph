@@ -12,13 +12,16 @@ import { writeFile, mkdir } from 'node:fs/promises';
 import { fileURLToPath } from 'node:url';
 import { dirname, join } from 'node:path';
 import { analyzeProject } from '@codegraph/core';
-import { discoverFiles } from '@codegraph/core/node';
+import { discoverFiles, nodeWasmDir } from '@codegraph/core/node';
 
 const root = join(dirname(fileURLToPath(import.meta.url)), '..');
 const out = join(root, 'packages', 'web', 'public', 'demo-analysis.json');
 
 const { files } = await discoverFiles(join(root, 'packages'));
-const analysis = await analyzeProject(files, { projectName: 'code-graph-unified (demo)' });
+const analysis = await analyzeProject(files, {
+  projectName: 'code-graph-unified (demo)',
+  wasmDir: nodeWasmDir(),
+});
 
 await mkdir(dirname(out), { recursive: true });
 await writeFile(out, JSON.stringify(analysis));

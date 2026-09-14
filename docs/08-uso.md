@@ -75,6 +75,12 @@ Para cambiar de proyecto: `Ctrl+C` y volvé a correr con otra carpeta.
 
 Qué se ve y cómo se navega: [`05-la-interfaz.md`](./05-la-interfaz.md).
 
+### Sin instalar nada: la web hosteada
+
+[codegraph-delta.vercel.app](https://codegraph-delta.vercel.app) analiza la
+carpeta que le arrastres **dentro del navegador** (sin backend). No tiene la capa
+de git. Detalle: [`10-analisis-en-el-navegador.md`](./10-analisis-en-el-navegador.md).
+
 ### Desarrollo de la propia web
 
 ```bash
@@ -177,7 +183,9 @@ queda limpio.
 ## Preguntas frecuentes
 
 **¿Sube mi código a algún lado?** No. Todo corre local: el CLI, el server web y
-el MCP. No hay backend ni API keys.
+el MCP. La web hosteada también analiza tu carpeta **en tu navegador** (ver
+[`10-analisis-en-el-navegador.md`](./10-analisis-en-el-navegador.md)). No hay
+backend ni API keys.
 
 **¿Funciona sin git?** Sí. Sin historial no hay hotspots, acoplamiento ni
 timeline; todo lo demás igual.

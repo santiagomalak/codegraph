@@ -11,8 +11,8 @@
       "import": "./dist/index.js"
     },
     "./node": {
-      "types": "./dist/node-fs.d.ts",
-      "import": "./dist/node-fs.js"
+      "types": "./dist/node/index.d.ts",
+      "import": "./dist/node/index.js"
     },
     "./queries": {
       "types": "./dist/queries.d.ts",
@@ -39,6 +39,7 @@
   },
   "devDependencies": {
     "@types/node": "^20.11.0",
+    "@vitest/coverage-v8": "^3.2.7",
     "typescript": "^5.3.3",
     "vitest": "^3.2.0"
   },

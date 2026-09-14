@@ -17,6 +17,7 @@ import { analyzeProject, type SnapshotSeries } from '@codegraph/core';
 import {
   buildSnapshots,
   discoverFiles,
+  nodeWasmDir,
   readGitHistory,
   readProjectConfig,
 } from '@codegraph/core/node';
@@ -56,6 +57,7 @@ export async function runServe(
     const { stats: git, timeline, coupling } = await readGitHistory(rootDir, files.map((f) => f.path));
     const analysis = await analyzeProject(files, {
       projectName: rootDir.split(/[/\\]/).pop(),
+      wasmDir: nodeWasmDir(),
       git: Object.keys(git).length > 0 ? git : undefined,
       timeline: timeline ?? undefined,
       coupling,

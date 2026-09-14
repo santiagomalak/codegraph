@@ -22,6 +22,7 @@ import {
 import {
   buildSnapshots,
   discoverFiles,
+  nodeWasmDir,
   readGitHistory,
   readProjectConfig,
 } from '@codegraph/core/node';
@@ -149,6 +150,7 @@ export async function runAnalyze(target: string, flags: AnalyzeFlags): Promise<v
   let lastPct = -1;
   const analysis = await analyzeProject(files, {
     projectName,
+    wasmDir: nodeWasmDir(),
     git: hasGit ? git : undefined,
     timeline: timeline ?? undefined,
     coupling,
