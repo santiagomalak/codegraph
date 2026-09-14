@@ -32,7 +32,7 @@
     "test:watch": "vitest"
   },
   "dependencies": {
-    "graphology": "^0.25.4",
+    "graphology": "^0.26.0",
     "graphology-communities-louvain": "^2.0.1",
     "tree-sitter-wasms": "^0.1.11",
     "web-tree-sitter": "^0.22.6"
