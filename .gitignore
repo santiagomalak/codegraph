@@ -18,3 +18,9 @@ packages/web/public/demo-analysis.json
 
 # .wasm de tree-sitter para la web (se copian desde node_modules en pre-build)
 packages/web/public/wasm/
+
+# Claude Code / agentes IA (contexto local, no va al repo)
+CLAUDE.md
+CLAUDE.local.md
+AGENTS.md
+.claude/
